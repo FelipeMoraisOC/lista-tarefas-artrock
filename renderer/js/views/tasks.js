@@ -156,11 +156,11 @@ export async function initTasks(container) {
         <button class="status-tab active" data-status="Todas">
           Todas <span class="badge badge-count" id="cnt-all">${cnt.Todas}</span>
         </button>
-        <button class="status-tab" data-status="Para Fazer">
-          Para Fazer <span class="badge badge-count" id="cnt-todo">${cnt['Para Fazer']}</span>
-        </button>
         <button class="status-tab" data-status="Em Andamento">
           Em Andamento <span class="badge badge-status-em-andamento" id="cnt-prog">${cnt['Em Andamento']}</span>
+        </button>
+        <button class="status-tab" data-status="Para Fazer">
+          Para Fazer <span class="badge badge-count" id="cnt-todo">${cnt['Para Fazer']}</span>
         </button>
         <button class="status-tab" data-status="Concluído">
           Concluído <span class="badge badge-status-concluído" id="cnt-done">${cnt['Concluído']}</span>

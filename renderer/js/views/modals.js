@@ -66,6 +66,7 @@ const ICONS = {
   comment: 'M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
   save:    'M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z',
   edit:    'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+  calendar:'M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.89-2-2-2zm0 16H5V9h14v11zM5 7V6h14v1H5z',
   trash:   'M6 19c0 1.1.9 2 2 2h8a2 2 0 002-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
   tag:     'M21.41 11.58l-9-9A2 2 0 0011 2H4a2 2 0 00-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.23-1.06-.59-1.42zM5.5 7A1.5 1.5 0 014 5.5 1.5 1.5 0 015.5 4 1.5 1.5 0 017 5.5 1.5 1.5 0 015.5 7z',
   warn:    'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
@@ -156,8 +157,8 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
           </div>
           <div class="tc-meta">
             <div class="tc-meta-label">Etiquetas</div>
-            <select class="tc-chip-select tc-prio-alta" id="fc-priority">
-              ${priorOpts.map(p => `<option value="${p}">${p}</option>`).join('')}
+            <select class="tc-chip-select tc-prio-média" id="fc-priority">
+              ${priorOpts.map(p => `<option value="${p}" ${p === 'Média' ? 'selected' : ''}>${p}</option>`).join('')}
             </select>
           </div>
           <div class="tc-meta tc-field">
@@ -411,11 +412,6 @@ export async function openTaskDetail(task, onSave) {
           </div>
         </div>
 
-        <div class="tc-actions">
-          ${!isSub ? `<button class="tc-btn" id="dd-add-sub">${icon('plus', 15)} Sub-tarefa</button>` : ''}
-          <button class="tc-btn" id="dd-add-check">${icon('list', 15)} Checklist</button>
-        </div>
-
         <div class="tc-meta-row">
           <div class="tc-meta">
             <div class="tc-meta-label">Status</div>
@@ -440,6 +436,11 @@ export async function openTaskDetail(task, onSave) {
               ${users.map(u => `<option value="${u.id}" ${W.requesterId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
             </select>
           </div>
+        </div>
+
+        <div class="tc-actions">
+          ${!isSub ? `<button class="tc-btn" id="dd-add-sub">${icon('plus', 15)} Sub-tarefa</button>` : ''}
+          <button class="tc-btn" id="dd-add-check">${icon('list', 15)} Checklist</button>
         </div>
 
         <!-- Description -->
@@ -484,7 +485,7 @@ export async function openTaskDetail(task, onSave) {
 
         <!-- Details -->
         <div class="tc-section">
-          ${sectionHead('info', 'Detalhes')}
+          ${sectionHead('calendar', 'Para Entrega')}
           <div class="tc-section-body tc-details-grid">
             <div class="tc-field">
               <div class="tc-meta-label ${!isSub ? 'tc-req-done' : ''}">Data de Início</div>
