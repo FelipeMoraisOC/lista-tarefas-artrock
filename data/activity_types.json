@@ -1,0 +1,31 @@
+[
+  {
+    "id": "at1",
+    "name": "Reunião",
+    "sectorIds": [
+      "ALL"
+    ]
+  },
+  {
+    "id": "at2",
+    "name": "Projeto",
+    "sectorIds": [
+      "s1",
+      "s2"
+    ]
+  },
+  {
+    "id": "at-1790193191699-poj26",
+    "name": "Desenvolvimento",
+    "sectorIds": [
+      "s1"
+    ]
+  },
+  {
+    "id": "at-1790193242844-o0ln2",
+    "name": "Rotina",
+    "sectorIds": [
+      "s2"
+    ]
+  }
+]

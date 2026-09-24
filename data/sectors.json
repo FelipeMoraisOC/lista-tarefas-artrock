@@ -1,0 +1,22 @@
+[
+  {
+    "id": "ALL",
+    "name": "TODOS"
+  },
+  {
+    "id": "s1",
+    "name": "T.I"
+  },
+  {
+    "id": "s2",
+    "name": "Backoffice Digital"
+  },
+  {
+    "id": "s3",
+    "name": "Vendas"
+  },
+  {
+    "id": "s4",
+    "name": "Admin"
+  }
+]

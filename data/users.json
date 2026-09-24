@@ -1,0 +1,58 @@
+[
+  {
+    "id": "u1",
+    "name": "Carlos Silva",
+    "role": "Desenvolvedor",
+    "initials": "CS",
+    "sectorIds": [
+      "s1"
+    ]
+  },
+  {
+    "id": "u2",
+    "name": "Teste Backoffice",
+    "role": "Backoffice Digital",
+    "initials": "TB",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "u3",
+    "name": "Pedro Costa",
+    "role": "Tech Lead",
+    "initials": "PC",
+    "sectorIds": [
+      "s1",
+      "s2"
+    ]
+  },
+  {
+    "id": "u4",
+    "name": "Mariana Lima",
+    "role": "Executiva de Vendas",
+    "initials": "ML",
+    "sectorIds": [
+      "s3"
+    ]
+  },
+  {
+    "id": "u5",
+    "name": "Rafael Santos",
+    "role": "Dev Full Stack",
+    "initials": "RS",
+    "sectorIds": [
+      "s1",
+      "s3"
+    ]
+  },
+  {
+    "id": "u6",
+    "name": "Administrador ArtRock",
+    "role": "Admin",
+    "initials": "AA",
+    "sectorIds": [
+      "s4"
+    ]
+  }
+]

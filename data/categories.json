@@ -1,0 +1,154 @@
+[
+  {
+    "id": "c1",
+    "name": "Preparação",
+    "activityTypeId": "at1",
+    "sectorIds": [
+      "ALL"
+    ]
+  },
+  {
+    "id": "c2",
+    "name": "Apresentação",
+    "activityTypeId": "at1",
+    "sectorIds": [
+      "ALL"
+    ]
+  },
+  {
+    "id": "c3",
+    "name": "Participação",
+    "activityTypeId": "at1",
+    "sectorIds": [
+      "ALL"
+    ]
+  },
+  {
+    "id": "c4",
+    "name": "Lista de Tarefas",
+    "activityTypeId": "at2",
+    "sectorIds": [
+      "s1"
+    ]
+  },
+  {
+    "id": "c5",
+    "name": "Shopee",
+    "activityTypeId": "at2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c6",
+    "name": "Administrativo",
+    "activityTypeId": "at2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193306108-803zk",
+    "name": "L.I Atacado Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193334707-4swq3",
+    "name": "L.I Varejo Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193351651-az1qp",
+    "name": "L.I Atacado One Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193362508-aoh5m",
+    "name": "Amazon Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193375395-9nry7",
+    "name": "Magalu Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193392180-lqrah",
+    "name": "TikTok One Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193408667-87leg",
+    "name": "Bling One Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193419340-hd7gu",
+    "name": "Mercado Livre One Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193446902-72idb",
+    "name": "Bling Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193457332-r52w4",
+    "name": "Site Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193467939-e9gl9",
+    "name": "Shopee Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193519611-8orih",
+    "name": "Tiktok Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  },
+  {
+    "id": "c-1790193528139-ndudc",
+    "name": "Mercado Livre Art Rock",
+    "activityTypeId": "at-1790193242844-o0ln2",
+    "sectorIds": [
+      "s2"
+    ]
+  }
+]
