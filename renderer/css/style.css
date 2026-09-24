@@ -711,7 +711,7 @@ input[type="range"].completion-slider.is-complete {
   align-items: center;
   gap: 4px;
   margin-bottom: 7px;
-  color: var(--status-inprogress);
+  color: var(--priority-high);
   font-size: .72rem;
   font-weight: 600;
 }
@@ -3212,6 +3212,189 @@ select.tc-input {
   color: var(--white);
   background: rgba(232,32,30,.15);
   border-color: rgba(232,32,30,.3);
+}
+
+/* ============================================================
+   TASK FILTER COMPONENT
+   ============================================================ */
+.tf-card {
+  background: var(--white);
+  border: 1.5px solid var(--gray-100);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tf-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--gray-100);
+}
+.tf-title {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--black);
+}
+.tf-body {
+  padding: 10px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: calc(100vh - 240px);
+}
+
+/* Collapsible date sections */
+.tf-section { border-bottom: 1px solid var(--gray-100); padding-bottom: 8px; }
+.tf-section:last-of-type { border-bottom: none; }
+.tf-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  transition: color var(--t);
+}
+.tf-section-toggle:hover { color: var(--black); }
+.tf-chevron { transition: transform var(--t); }
+.tf-section-toggle.tf-open .tf-chevron { transform: rotate(180deg); }
+.tf-section-body { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px 22px; }
+.tf-section-body.tf-collapsed { display: none; }
+.tf-date-row { display: flex; align-items: center; gap: 8px; }
+.tf-date-label {
+  font-size: .76rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  min-width: 28px;
+}
+.tf-date-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--r-sm);
+  font-size: .8rem;
+  background: var(--white);
+  color: var(--black);
+  transition: border-color var(--t);
+}
+.tf-date-input:focus {
+  border-color: var(--status-inprogress);
+  outline: none;
+}
+
+/* Dropdown fields */
+.tf-field { margin-top: 6px; }
+.tf-field-label {
+  display: block;
+  font-size: .76rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.tf-select {
+  width: 100%;
+  padding: 7px 28px 7px 10px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--r-sm);
+  font-size: .82rem;
+  background: var(--white);
+  color: var(--black);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23999'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 18px;
+  cursor: pointer;
+  transition: border-color var(--t);
+}
+.tf-select:focus {
+  border-color: var(--status-inprogress);
+  outline: none;
+}
+.tf-select:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* Footer */
+.tf-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--gray-100);
+}
+.tf-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t);
+  border: none;
+}
+.tf-btn-clear {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+.tf-btn-clear:hover { background: var(--gray-200); }
+.tf-btn-apply {
+  background: var(--status-inprogress);
+  color: var(--white);
+}
+.tf-btn-apply:hover { background: #1d4ed8; }
+
+/* ============================================================
+   DELEGATED TASKS LAYOUT
+   ============================================================ */
+.deleg-layout {
+  display: flex;
+  gap: 20px;
+  height: 100%;
+}
+.deleg-sidebar {
+  width: 25%;
+  min-width: 240px;
+  max-width: 320px;
+  flex-shrink: 0;
+}
+.deleg-main {
+  flex: 1;
+  min-width: 0;
+}
+.deleg-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.deleg-toolbar-count {
+  font-size: .88rem;
+  color: var(--gray-600);
+}
+.deleg-toolbar-count strong {
+  color: var(--black);
+  font-weight: 700;
+}
+.deleg-sort {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sort-dir-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* ── Dev-only (visível apenas com --dev) ─────────────────── */

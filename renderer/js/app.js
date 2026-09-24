@@ -4,6 +4,7 @@ import { initDashboard } from './views/dashboard.js';
 import { initTasks }     from './views/tasks.js';
 import { initAdmin, renderAccessDenied } from './views/admin.js';
 import { initUsers } from './views/users.js';
+import { initDelegated } from './views/delegated.js';
 import { openCreateTask } from './views/modals.js';
 import { getUsers, setCurrentUser, getCurrentUser, isAdmin, bust } from './store.js';
 import { onAuthChange, loginWithEmail, logout, resetPassword } from './auth.js';
@@ -16,6 +17,7 @@ const ROUTES = {
   tasks:     { fn: initTasks,     title: 'Minhas Tarefas' },
   admin:     { fn: initAdmin,     title: 'Administração', adminOnly: true },
   users:     { fn: initUsers,     title: 'Gerenciar Usuários', adminOnly: true },
+  delegated: { fn: initDelegated, title: 'Tarefas Delegadas' },
 };
 
 // Mostra o menu Administração apenas para o setor Admin e esconde
@@ -23,7 +25,7 @@ const ROUTES = {
 function applyAccessUI(admin, page) {
   document.getElementById('nav-admin').classList.toggle('hidden', !admin);
   document.getElementById('nav-users').classList.toggle('hidden', !admin);
-  document.getElementById('btn-new-task').classList.toggle('hidden', page === 'admin' || page === 'users');
+  document.getElementById('btn-new-task').classList.toggle('hidden', page === 'admin' || page === 'users' || page === 'delegated');
 }
 
 async function navigate(raw) {

@@ -97,7 +97,7 @@ export async function initDashboard(container) {
           <div class="task-list" id="dash-inprogress">
             ${inProgress.length
               ? inProgress.map(t => taskCard(t, categories, users)).join('')
-              : '<div class="task-list-empty">Nenhuma tarefa em andamento 🎉</div>'}
+              : '<div class="task-list-empty">Nenhuma tarefa em andamento ⚠️</div>'}
           </div>
         </div>
 
@@ -117,7 +117,7 @@ export async function initDashboard(container) {
       <div class="dash-right">
         <div class="section-wrap">
           <div class="section-header">
-            <span class="section-title">🍩 Horas por Categoria</span>
+            <span class="section-title">📊 Horas por Categoria</span>
           </div>
           <div class="chart-wrap" style="height:240px">
             <canvas id="pieChart"></canvas>
