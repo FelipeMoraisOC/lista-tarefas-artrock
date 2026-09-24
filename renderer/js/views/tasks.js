@@ -59,6 +59,20 @@ export async function initTasks(container) {
     };
   }
 
+  function updateCounts() {
+    const currentCounts = counts();
+    const countElements = {
+      Todas: document.getElementById('cnt-all'),
+      'Para Fazer': document.getElementById('cnt-todo'),
+      'Em Andamento': document.getElementById('cnt-prog'),
+      'Concluído': document.getElementById('cnt-done'),
+    };
+
+    Object.entries(countElements).forEach(([status, element]) => {
+      if (element) element.textContent = currentCounts[status];
+    });
+  }
+
   function filtered() {
     const list = mine.filter(t => {
       if (activeStatus !== 'Todas' && t.status !== activeStatus) return false;
@@ -102,6 +116,7 @@ export async function initTasks(container) {
   function renderGrid() {
     const grid = document.getElementById('tasks-grid');
     if (!grid) return;
+    updateCounts();
     const list = filtered();
 
     if (list.length === 0) {

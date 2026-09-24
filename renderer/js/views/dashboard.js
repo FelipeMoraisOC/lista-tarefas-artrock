@@ -16,6 +16,7 @@ function taskCard(task, categories, users) {
   const req      = users.find(u => u.id === task.requesterId);
   const overdue  = isOverdue(task.deadline, task.status);
   const pct      = task.completionPercent ?? 0;
+  const completionClass = pct >= 100 ? ' complete' : '';
 
   return `
     <div class="task-card${overdue ? ' overdue' : ''}" data-id="${task.id}" role="button" tabindex="0">
@@ -28,7 +29,7 @@ function taskCard(task, categories, users) {
         ${cat ? `<span class="badge badge-cat">${cat.name}</span>` : ''}
       </div>
       ${pct > 0 ? `
-        <div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div>
+        <div class="prog-wrap"><div class="prog-fill${completionClass}" style="width:${pct}%"></div></div>
         <span class="prog-label">${pct}% concluído</span>
       ` : ''}
       <div class="task-card-foot">

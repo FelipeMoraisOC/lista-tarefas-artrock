@@ -2,7 +2,7 @@
 
 import {
   getTasks, getUsers, getCategories, getActivityTypes,
-  getActivityTypesForUser, getCurrentUser, createTask, updateTask,
+  getActivityTypesForUser, getCurrentUser, createTask, updateTask, deleteTask,
 } from '../store.js';
 import { renderMd } from '../components/markdown.js';
 import { initEditor, destroyAllEditors } from '../components/editor.js';
@@ -35,6 +35,11 @@ const statusOpts = ['Para Fazer', 'Em Andamento', 'Concluído'];
 const priorOpts  = ['Alta', 'Média', 'Baixa'];
 
 const slug = s => s.toLowerCase().replace(/ /g, '-');
+
+function updateCompletionSlider(slider, label) {
+  slider.classList.toggle('is-complete', Number(slider.value) === 100);
+  label.textContent = slider.value + '%';
+}
 
 export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
@@ -194,7 +199,7 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
             <div class="tc-field">
               <div class="tc-meta-label">% de Conclusão</div>
               <div class="tc-range">
-                <input type="range" id="fc-pct" min="0" max="100" value="0" step="5" />
+                <input type="range" class="completion-slider" id="fc-pct" min="0" max="100" value="0" step="5" />
                 <span id="fc-pct-lbl">0%</span>
               </div>
             </div>
@@ -252,7 +257,9 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
     applyStatus($('fc-status').value === 'Concluído' ? 'Para Fazer' : 'Concluído'));
 
   // Slider label
-  $('fc-pct').addEventListener('input', e => { $('fc-pct-lbl').textContent = e.target.value + '%'; });
+  updateCompletionSlider($('fc-pct'), $('fc-pct-lbl'));
+  $('fc-pct').addEventListener('input', e =>
+    updateCompletionSlider(e.target, $('fc-pct-lbl')));
 
   // Save
   $('mc-save').addEventListener('click', async () => {
@@ -494,12 +501,19 @@ export async function openTaskDetail(task, onSave) {
             <div class="tc-field">
               <div class="tc-meta-label">% de Conclusão</div>
               <div class="tc-range">
-                <input type="range" id="dd-pct" min="0" max="100" value="${W.completionPercent ?? 0}" step="5" />
+                <input type="range" class="completion-slider" id="dd-pct" min="0" max="100" value="${W.completionPercent ?? 0}" step="5" />
                 <span id="dd-pct-lbl">${W.completionPercent ?? 0}%</span>
               </div>
             </div>
           </div>
         </div>
+        <!-- Actions -->
+        <div class="tc-section">
+              ${sectionHead('warn', 'Ações')}
+              <div class="tc-section-body">
+                <button class="tc-btn tc-btn-danger" id="dd-delete">${icon('trash', 15)} Excluir</button>
+              </div>
+            </div>
       </div>
 
       <!-- ── Comments & activity ── -->
@@ -643,7 +657,7 @@ export async function openTaskDetail(task, onSave) {
 
   $('dd-pct').addEventListener('input', e => {
     W.completionPercent = parseInt(e.target.value);
-    $('dd-pct-lbl').textContent = e.target.value + '%';
+    updateCompletionSlider(e.target, $('dd-pct-lbl'));
     markDirty();
   });
 
@@ -816,6 +830,26 @@ export async function openTaskDetail(task, onSave) {
     }
   });
 
+  $('dd-delete').addEventListener('click', async () => {
+    const confirmed = await openConfirm({
+      title: 'Excluir tarefa',
+      message: `Para excluir <strong>${esc(W.name)}</strong> permanentemente, digite <strong>excluir</strong> e clique em "Confirmar exclusão".`,
+      confirmLabel: 'Confirmar exclusão',
+      danger: true,
+      requiredText: 'excluir',
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteTask(W.id);
+      showToast('Tarefa excluída!', 'success');
+      if (onSave) await onSave();
+      else closeModal();
+    } catch (err) {
+      showToast('Erro ao excluir: ' + err.message, 'error');
+    }
+  });
+
   // ── Add subtask ──
   $('dd-add-sub')?.addEventListener('click', () => {
     closeModal();
@@ -849,7 +883,9 @@ export async function openTaskDetail(task, onSave) {
 // CONFIRM MODAL — resolve(true) ao confirmar, resolve(false) ao sair
 // ═══════════════════════════════════════════════════════════
 
-export function openConfirm({ title, message, confirmLabel = 'Confirmar', danger = false }) {
+export function openConfirm({
+  title, message, confirmLabel = 'Confirmar', danger = false, requiredText = '',
+}) {
   return new Promise(resolve => {
     openShell(`
       <div class="tc-topbar">
@@ -862,11 +898,17 @@ export function openConfirm({ title, message, confirmLabel = 'Confirmar', danger
         </div>
       </div>
       <div class="tc-body tc-body-single">
-        <div class="tc-main"><p class="tc-confirm-text">${message}</p></div>
+        <div class="tc-main">
+          <p class="tc-confirm-text">${message}</p>
+          ${requiredText ? `
+            <label class="tc-confirm-label" for="cf-confirmation">Digite "${esc(requiredText)}" para confirmar</label>
+            <input class="tc-input tc-confirm-input" id="cf-confirmation" type="text" autocomplete="off" />
+          ` : ''}
+        </div>
       </div>
       <div class="tc-footer">
         <button class="tc-btn" id="cf-no">Cancelar</button>
-        <button class="tc-btn ${danger ? 'tc-btn-danger' : 'tc-btn-primary'}" id="cf-yes">${esc(confirmLabel)}</button>
+        <button class="tc-btn ${danger ? 'tc-btn-danger' : 'tc-btn-primary'}" id="cf-yes" ${requiredText ? 'disabled' : ''}>${esc(confirmLabel)}</button>
       </div>
     `, 'tc-confirm');
 
@@ -882,7 +924,16 @@ export function openConfirm({ title, message, confirmLabel = 'Confirmar', danger
     document.getElementById('modal-backdrop').onclick = () => done(false);
     document.getElementById('cf-close').onclick = () => done(false);
     document.getElementById('cf-no').onclick    = () => done(false);
-    document.getElementById('cf-yes').onclick   = () => done(true);
-    document.getElementById('cf-yes').focus();
+    const confirmButton = document.getElementById('cf-yes');
+    confirmButton.onclick = () => done(true);
+    if (requiredText) {
+      const confirmation = document.getElementById('cf-confirmation');
+      confirmation.addEventListener('input', () => {
+        confirmButton.disabled = confirmation.value.trim().toLowerCase() !== requiredText.toLowerCase();
+      });
+      confirmation.focus();
+    } else {
+      confirmButton.focus();
+    }
   });
 }

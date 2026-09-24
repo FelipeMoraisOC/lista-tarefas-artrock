@@ -1,16 +1,19 @@
 /* ============================================================
    ArtRock Design System
-   Brand: Vermelho #E8201E | Preto #111111 | Branco #FFFFFF
+   Brand: Verde #16A34A | Azul #2563EB | Branco #FFFFFF
    ============================================================ */
 
 /* ── Tokens ─────────────────────────────────────────────── */
 :root {
   /* Brand */
-  --red: #E8201E;
+  --red: #DC2626;
   --red-dark: #C01917;
   --red-light: #FF4341;
   --red-sub: rgba(232, 32, 30, .08);
   --red-sub2: rgba(232, 32, 30, .14);
+  --primary: #16A34A;
+  --primary-dark: #15803D;
+  --primary-sub: rgba(22, 163, 74, .1);
 
   /* Neutral */
   --black: #111111;
@@ -29,7 +32,7 @@
   --status-todo: #6B7280;
   --status-inprogress: #2563EB;
   --status-done: #16A34A;
-  --priority-high: #E8201E;
+  --priority-high: #DC2626;
   --priority-medium: #D97706;
   --priority-low: #059669;
 
@@ -117,7 +120,7 @@ ol {
 #sidebar {
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
-  background: var(--black);
+  background: #1d1e21;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -142,7 +145,7 @@ ol {
 }
 
 .brand-rock {
-  color: var(--red);
+  color: var(--primary);
   font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: -1px;
@@ -185,7 +188,7 @@ ol {
 }
 
 .nav-item.active {
-  background: var(--red-sub2);
+  background: rgba(37, 99, 235, .18);
   color: var(--white);
 }
 
@@ -196,7 +199,7 @@ ol {
   top: 18%;
   bottom: 18%;
   width: 3px;
-  background: var(--red);
+  background: var(--status-inprogress);
   border-radius: 0 3px 3px 0;
 }
 
@@ -223,7 +226,7 @@ ol {
   width: 36px;
   height: 36px;
   border-radius: var(--r-full);
-  background: var(--red);
+  background: var(--primary);
   color: var(--white);
   font-weight: 700;
   font-size: .8rem;
@@ -371,14 +374,14 @@ ol {
 }
 
 .btn-primary {
-  background: var(--red);
+  background: var(--primary);
   color: var(--white);
 }
 
 .btn-primary:hover {
-  background: var(--red-dark);
+  background: var(--primary-dark);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(232, 32, 30, .38);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, .28);
 }
 
 .btn-primary:active {
@@ -408,12 +411,12 @@ ol {
 
 .btn-danger {
   background: var(--red-sub);
-  color: var(--red);
-  border: 1px solid rgba(232, 32, 30, .2);
+  color: var(--priority-high);
+  border: 1px solid rgba(220, 38, 38, .2);
 }
 
 .btn-danger:hover {
-  background: var(--red);
+  background: var(--priority-high);
   color: var(--white);
 }
 
@@ -444,8 +447,8 @@ ol {
 
 /* Priority */
 .badge-priority-alta {
-  background: rgba(232, 32, 30, .1);
-  color: var(--red);
+  background: rgba(220, 38, 38, .1);
+  color: var(--priority-high);
 }
 
 .badge-priority-média {
@@ -476,9 +479,9 @@ ol {
 
 /* Category */
 .badge-cat {
-  background: var(--red-sub);
-  color: var(--red-dark);
-  border: 1px solid rgba(232, 32, 30, .15);
+  background: rgba(37, 99, 235, .08);
+  color: var(--status-inprogress);
+  border: 1px solid rgba(37, 99, 235, .15);
 }
 
 /* Subtask */
@@ -607,8 +610,12 @@ ol {
 /* Range */
 input[type="range"] {
   width: 100%;
-  accent-color: var(--red);
+  accent-color: #6b9f7d;
   cursor: pointer;
+}
+
+input[type="range"].completion-slider.is-complete {
+  accent-color: var(--status-done);
 }
 
 /* ============================================================
@@ -659,13 +666,13 @@ input[type="range"] {
 }
 
 .task-card:hover {
-  border-color: var(--red);
+  border-color: var(--primary);
   box-shadow: var(--sh-md);
   transform: translateY(-2px);
 }
 
 .task-card:hover::before {
-  background: var(--red);
+  background: var(--primary);
 }
 
 .task-card.overdue {
@@ -718,9 +725,13 @@ input[type="range"] {
 
 .prog-fill {
   height: 100%;
-  background: var(--red);
+  background: #6b9f7d;
   border-radius: var(--r-full);
   transition: width var(--t-slow);
+}
+
+.prog-fill.complete {
+  background: var(--status-done);
 }
 
 .prog-label {
@@ -877,7 +888,7 @@ input[type="range"] {
 
 .status-tab.active {
   background: var(--white);
-  color: var(--black);
+  color: var(--status-inprogress);
   box-shadow: var(--sh-xs);
 }
 
@@ -976,8 +987,8 @@ input[type="range"] {
 
 .sort-button:hover:not(:disabled),
 .sort-button.active {
-  border-color: var(--red);
-  background: var(--red);
+  border-color: var(--status-inprogress);
+  background: var(--status-inprogress);
   color: var(--white);
 }
 
@@ -1504,6 +1515,12 @@ input[type="range"] {
   max-width: 720px;
 }
 
+.tc.tc-create #fc-at,
+.tc.tc-create #fc-cat {
+  width: 312px;
+  max-width: 312px;
+}
+
 /* Top bar */
 .tc-topbar {
   display: flex;
@@ -1608,13 +1625,13 @@ input[type="range"] {
 }
 
 .tc-note {
-  background: rgba(232, 32, 30, .12);
-  border-left: 3px solid var(--red);
+  background: #e5e7eb;
+  border-left: 3px solid #9ca3af;
   padding: 8px 12px;
   border-radius: 6px;
   margin-bottom: 14px;
   font-size: .78rem;
-  color: #f3b4b3;
+  color: #4b5563;
 }
 
 /* Title */
@@ -1731,13 +1748,13 @@ input[type="range"] {
 }
 
 .tc-btn-primary {
-  background: var(--red);
-  border-color: var(--red);
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
 }
 
 .tc-btn-primary:hover {
-  background: var(--red-dark);
+  background: var(--primary-dark);
 }
 
 /* Meta row (Status / Etiquetas / Data Entrega / Solicitante) */
@@ -1758,7 +1775,7 @@ input[type="range"] {
 .tc-meta-label.req::after,
 .tc-is-done .tc-req-done::after {
   content: ' *';
-  color: var(--red);
+  color: var(--priority-high);
 }
 
 .tc-chip-select,
@@ -1795,8 +1812,8 @@ input[type="range"] {
 
 /* Label colours (priority / status) */
 .tc-prio-alta {
-  background-color: #d9437e !important;
-  border-color: #d9437e !important;
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
   color: #fff !important;
 }
 
@@ -1817,14 +1834,14 @@ input[type="range"] {
 }
 
 .tc-status-em-andamento {
-  background-color: #1f4fa8 !important;
-  border-color: #1f4fa8 !important;
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
   color: #fff !important;
 }
 
 .tc-status-concluído {
-  background-color: #1d7a41 !important;
-  border-color: #1d7a41 !important;
+  background-color: #16a34a !important;
+  border-color: #16a34a !important;
   color: #fff !important;
 }
 
@@ -2174,7 +2191,7 @@ input[type="range"] {
   height: 28px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: var(--red);
+  background: var(--primary);
   color: #fff;
   font-size: .66rem;
   font-weight: 800;
@@ -2254,7 +2271,7 @@ input[type="range"] {
   line-height: 1.5;
   background: var(--white);
   border: 1px solid var(--gray-200);
-  border-left: 3px solid var(--red);
+  border-left: 3px solid var(--status-inprogress);
   border-radius: var(--r-sm);
   padding: 10px 14px;
   margin-bottom: 16px;
@@ -2401,13 +2418,26 @@ input[type="range"] {
 }
 
 .tc-btn-danger {
-  background: var(--red);
-  border-color: var(--red);
+  background: var(--priority-high);
+  border-color: var(--priority-high);
   color: #fff;
 }
 
 .tc-btn-danger:hover {
-  background: var(--red-dark);
+  background: #b91c1c;
+}
+
+.tc-confirm-label {
+  display: block;
+  margin-top: 18px;
+  margin-bottom: 6px;
+  color: var(--tc-muted);
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.tc-confirm-input {
+  width: 100%;
 }
 
 @media (max-width:860px) {
@@ -2669,7 +2699,7 @@ select.tc-input {
   margin-bottom: 6px;
 }
 .login-brand .brand-art  { color: var(--black); font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; }
-.login-brand .brand-rock { color: var(--red);   font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; }
+.login-brand .brand-rock { color: var(--primary);   font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; }
 .login-brand .brand-sub  { color: var(--gray-500); font-size: .75rem; font-weight: 500; margin-left: 6px; letter-spacing: .04em; text-transform: uppercase; }
 .login-subtitle {
   font-size: .84rem;
@@ -2719,13 +2749,13 @@ select.tc-input {
   font-size: .9rem;
   font-weight: 700;
   color: var(--white);
-  background: var(--red);
+  background: var(--primary);
   border: none;
   border-radius: var(--r-sm);
   cursor: pointer;
   transition: background var(--t), transform var(--t);
 }
-.login-btn:hover { background: var(--red-dark); }
+.login-btn:hover { background: var(--primary-dark); }
 .login-btn:active { transform: translateY(1px); }
 .login-btn:disabled { opacity: .6; cursor: not-allowed; }
 .login-link {
@@ -2738,7 +2768,7 @@ select.tc-input {
   cursor: pointer;
   text-decoration: underline;
 }
-.login-link:hover { color: var(--red); }
+.login-link:hover { color: var(--status-inprogress); }
 
 /* ── Botão Sair (sidebar) ────────────────────────────────── */
 .btn-logout {
