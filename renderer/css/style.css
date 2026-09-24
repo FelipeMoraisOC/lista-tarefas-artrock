@@ -487,6 +487,17 @@ ol {
   color: var(--gray-600);
 }
 
+/* Completion */
+.completion-badge.in-progress {
+  background: rgba(37, 99, 235, .1);
+  color: var(--status-inprogress);
+}
+
+.completion-badge.complete {
+  background: rgba(22, 163, 74, .1);
+  color: var(--status-done);
+}
+
 /* Count */
 .badge-count {
   background: var(--gray-100);
