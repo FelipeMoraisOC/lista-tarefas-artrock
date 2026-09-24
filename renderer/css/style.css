@@ -2857,6 +2857,20 @@ input[type="range"].completion-slider.is-complete {
   font-size: .58rem;
 }
 
+/* User avatar (table) */
+.user-avatar-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: .7rem;
+  font-weight: 800;
+}
+
 /* Selects reaproveitando o estilo de input no modal escuro */
 select.tc-input {
   cursor: pointer;

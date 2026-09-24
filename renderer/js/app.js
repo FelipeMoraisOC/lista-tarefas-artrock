@@ -3,6 +3,7 @@
 import { initDashboard } from './views/dashboard.js';
 import { initTasks }     from './views/tasks.js';
 import { initAdmin, renderAccessDenied } from './views/admin.js';
+import { initUsers } from './views/users.js';
 import { openCreateTask } from './views/modals.js';
 import { getUsers, setCurrentUser, getCurrentUser, isAdmin, bust } from './store.js';
 import { onAuthChange, loginWithEmail, logout, resetPassword } from './auth.js';
@@ -14,13 +15,15 @@ const ROUTES = {
   dashboard: { fn: initDashboard, title: 'Dashboard' },
   tasks:     { fn: initTasks,     title: 'Minhas Tarefas' },
   admin:     { fn: initAdmin,     title: 'Administração', adminOnly: true },
+  users:     { fn: initUsers,     title: 'Gerenciar Usuários', adminOnly: true },
 };
 
 // Mostra o menu Administração apenas para o setor Admin e esconde
 // "Nova Tarefa" na própria página de Administração.
 function applyAccessUI(admin, page) {
   document.getElementById('nav-admin').classList.toggle('hidden', !admin);
-  document.getElementById('btn-new-task').classList.toggle('hidden', page === 'admin');
+  document.getElementById('nav-users').classList.toggle('hidden', !admin);
+  document.getElementById('btn-new-task').classList.toggle('hidden', page === 'admin' || page === 'users');
 }
 
 async function navigate(raw) {

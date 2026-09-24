@@ -122,6 +122,41 @@ export async function deleteTask(id) {
   bust('tasks');
 }
 
+// ── User management (admin) ──────────────────────────────
+
+export async function createUser({ uid, email, name, initials, role, sectorIds }) {
+  if (!uid?.trim()) throw new Error('UID é obrigatório.');
+  if (!email?.trim()) throw new Error('Email é obrigatório.');
+  if (!initials?.trim()) throw new Error('Iniciais são obrigatórias.');
+
+  const existing = await getDoc(doc(db, 'users', uid));
+  if (existing.exists()) throw new Error(`Já existe um usuário com UID "${uid}".`);
+
+  const user = {
+    id: uid,
+    email: email.trim(),
+    name: (name || '').trim() || email.trim(),
+    initials: initials.trim().toUpperCase(),
+    role: (role || '').trim() || 'Colaborador',
+    sectorIds: sectorIds?.length ? sectorIds : ['ALL'],
+  };
+  await setDoc(doc(db, 'users', uid), user);
+  bust('users');
+  return user;
+}
+
+export async function updateUser(uid, updates) {
+  const docRef = doc(db, 'users', uid);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) throw new Error(`Usuário ${uid} não encontrado.`);
+
+  const merged = { ...updates };
+  await updateDoc(docRef, merged);
+  bust('users');
+  bust('_currentUser');
+  return { ...snap.data(), ...merged, id: uid };
+}
+
 // ── Admin access (setor "Admin") ──────────────────────────
 
 const ADMIN_SECTOR_NAME = 'admin';
