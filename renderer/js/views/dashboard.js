@@ -54,7 +54,7 @@ export async function initDashboard(container) {
     getTasks(), getUsers(), getCategories(), getCurrentUser(),
   ]);
 
-  const mine = tasks.filter(t => t.type === 'task' && t.createdById === currentUser.id);
+  const mine = tasks.filter(t => t.type === 'task' && (t.responsibleId ?? t.createdById) === currentUser.id);
 
   const inProgress = mine.filter(t => t.status === 'Em Andamento');
   const upcoming   = mine.filter(t => t.status === 'Para Fazer')

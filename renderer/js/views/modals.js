@@ -6,6 +6,7 @@ import {
 } from '../store.js';
 import { renderMd } from '../components/markdown.js';
 import { initEditor, destroyAllEditors } from '../components/editor.js';
+import { createSearchableSelect } from '../components/searchable-select.js';
 import { showToast, formatDatetime, todayISO, generateId } from '../utils.js';
 
 // ── Modal shell helpers ───────────────────────────────────
@@ -104,6 +105,81 @@ function setErr(inputId, hasError) {
   const el = document.getElementById(inputId);
   if (!el) return;
   (el.closest('.tc-field') ?? el.parentElement)?.classList.toggle('has-error', hasError);
+}
+
+function openResponsiblePicker(users, currentId) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'tc-resp-modal';
+    let selectedId = currentId || '';
+
+    function render(filter = '') {
+      const term = filter.toLowerCase().trim();
+      const filtered = term
+        ? users.filter(u => u.name.toLowerCase().includes(term))
+        : users;
+
+      const listHtml = filtered.length
+        ? filtered.map(u => `
+            <div class="tc-resp-user${u.id === selectedId ? ' selected' : ''}" data-id="${u.id}">
+              <span class="tc-avatar">${esc(initials(u))}</span>
+              <div class="tc-resp-user-info">
+                <div class="tc-resp-user-name">${esc(u.name)}</div>
+                <div class="tc-resp-user-role">${esc(u.role ?? '')}</div>
+              </div>
+              ${u.id === selectedId ? `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:#6ea8ff;flex-shrink:0"><path d="${ICONS.check}"/></svg>` : ''}
+            </div>`).join('')
+        : `<div class="tc-resp-empty">Nenhum usuário encontrado</div>`;
+
+      overlay.innerHTML = `
+        <div class="tc-resp-backdrop"></div>
+        <div class="tc tc-resp-card">
+          <div class="tc-resp-header">
+            <span class="tc-resp-title">Escolher Responsável</span>
+            <button class="tc-icon-btn" id="resp-close" title="Fechar">✕</button>
+          </div>
+          <div class="tc-resp-search-wrap">
+            <input type="text" class="tc-resp-search" id="resp-search" placeholder="Filtrar por nome..." value="${esc(filter)}" autocomplete="off" />
+          </div>
+          <div class="tc-resp-list">${listHtml}</div>
+          <div class="tc-resp-footer">
+            <button class="tc-btn" id="resp-cancel">Cancelar</button>
+            <button class="tc-btn tc-btn-primary" id="resp-confirm">Confirmar</button>
+          </div>
+        </div>`;
+
+      overlay.querySelector('#resp-close').onclick = close;
+      overlay.querySelector('.tc-resp-backdrop').onclick = close;
+      overlay.querySelector('#resp-cancel').onclick = close;
+      overlay.querySelector('#resp-confirm').onclick = () => {
+        done(selectedId);
+      };
+
+      const searchInput = overlay.querySelector('#resp-search');
+      searchInput.addEventListener('input', e => render(e.target.value));
+      searchInput.focus();
+
+      overlay.querySelectorAll('.tc-resp-user').forEach(el => {
+        el.addEventListener('click', () => {
+          selectedId = el.dataset.id;
+          render(searchInput.value);
+        });
+      });
+    }
+
+    function close() { done(null); }
+    function done(val) {
+      overlay.remove();
+      resolve(val);
+    }
+
+    overlay.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.stopPropagation(); close(); }
+    });
+
+    render();
+    document.body.appendChild(overlay);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -227,6 +303,9 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
     </div>
 
     <div class="tc-footer">
+      <div class="tc-footer-left">
+        <button class="tc-btn tc-btn-blue" id="mc-pick-resp">${icon('plus', 15)} Responsável</button>
+      </div>
       <button class="tc-btn" id="mc-cancel">Cancelar</button>
       <button class="tc-btn tc-btn-primary" id="mc-save">${icon('save', 15)} ${isSub ? 'Criar Sub-tarefa' : 'Criar Tarefa'}</button>
     </div>
@@ -239,6 +318,17 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
   $('mc-close').onclick  = closeModal;
   $('mc-cancel').onclick = closeModal;
   $('fc-name').focus();
+
+  let chosenResponsibleId = null;
+  const respBtn = $('mc-pick-resp');
+  respBtn.addEventListener('click', async () => {
+    const picked = await openResponsiblePicker(users, chosenResponsibleId);
+    if (picked !== null) {
+      chosenResponsibleId = picked;
+      const u = users.find(x => x.id === picked);
+      respBtn.innerHTML = `${icon('plus', 15)} ${u ? esc(u.name) : 'Responsável'}`;
+    }
+  });
 
   // Initialize EasyMDE rich editor for description
   const fcDescEditor = initEditor($('fc-desc'), {
@@ -337,6 +427,7 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
         checklist: [],
         comments:  [],
         createdById: currentUser.id,
+        responsibleId: chosenResponsibleId || currentUser.id,
       });
       closeModal();
       showToast(isSub ? 'Sub-tarefa criada!' : 'Tarefa criada!', 'success');
@@ -553,6 +644,19 @@ export async function openTaskDetail(task, onSave) {
 
       <!-- ── Comments & activity ── -->
       <aside class="tc-side">
+        <div class="tc-side-info">
+          <div class="tc-side-field">
+            <div class="tc-side-field-label">Criado por</div>
+            <div class="tc-side-field-value">
+              ${(() => { const u = users.find(x => x.id === W.createdById); return u ? `<span class="tc-avatar">${esc(initials(u))}</span> ${esc(u.name)}` : '—'; })()}
+            </div>
+          </div>
+          <div class="tc-side-field">
+            <div class="tc-side-field-label">Responsável</div>
+            <div id="dd-resp-container"></div>
+          </div>
+        </div>
+
         <div class="tc-side-head">
           <span class="tc-section-icon">${icon('comment', 18)}</span>
           <span class="tc-side-title">Comentários e atividade</span>
@@ -583,6 +687,33 @@ export async function openTaskDetail(task, onSave) {
     closeModal();
     if (onSave) await onSave();
   };
+
+  // ── Responsible user dropdown ──
+  const respSelect = createSearchableSelect({
+    options: users.map(u => ({ value: u.id, label: u.name })),
+    value: W.responsibleId || W.createdById || '',
+    placeholder: 'Escolher responsável...',
+    searchPlaceholder: 'Filtrar por nome...',
+    onChange: (val) => {
+      const oldId = W.responsibleId || W.createdById;
+      if (val === oldId) return;
+      const oldUser = users.find(u => u.id === oldId);
+      const newUser = users.find(u => u.id === val);
+      W.responsibleId = val;
+      const comment = {
+        id: generateId('cmt'),
+        userId: currentUser.id,
+        text: `alterou o responsável de ${oldUser?.name ?? '—'} para ${newUser?.name ?? '—'}`,
+        createdAt: new Date().toISOString(),
+        isSystem: true,
+      };
+      W.comments = [...W.comments, comment];
+      renderFeed();
+      markDirty();
+    },
+    className: 'ss-wide',
+  });
+  $('dd-resp-container').appendChild(respSelect);
 
   // ── Name inline edit ──
   const nameView  = $('dd-name-view');
@@ -750,7 +881,7 @@ export async function openTaskDetail(task, onSave) {
 
   // ── Comments & activity feed ──
   function renderFeed() {
-    const entries = W.comments.map(c => ({ ...c, kind: 'comment' }));
+    const entries = W.comments.map(c => ({ ...c, kind: c.isSystem ? 'activity' : 'comment' }));
     if (showActivity) {
       entries.push({ kind: 'activity', userId: W.createdById, createdAt: W.createdAt,
         text: `criou ${isSub ? 'esta sub-tarefa' : 'esta tarefa'}` });
@@ -851,9 +982,7 @@ export async function openTaskDetail(task, onSave) {
     btn.disabled = true; btn.textContent = 'Salvando...';
 
     try {
-      // Comments are persisted on their own; don't overwrite newer ones
-      const { comments, ...rest } = W;
-      const updated = await updateTask(W.id, rest);
+      const updated = await updateTask(W.id, W);
       clearDescriptionDraft(W.id);
       W.updatedAt = updated.updatedAt;
       ['dd-hours', 'dd-start', 'dd-end'].forEach(id => setErr(id, false));

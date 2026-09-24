@@ -55,8 +55,8 @@ export async function initTasks(container) {
     getTasks(), getUsers(), getCategories(), getActivityTypes(), getCurrentUser(),
   ]);
 
-  // Own tasks (not subtasks)
-  let mine = allTasks.filter(t => t.type === 'task' && t.createdById === currentUser.id);
+  // Tasks the current user is responsible for (fallback to createdById for legacy tasks)
+  let mine = allTasks.filter(t => t.type === 'task' && (t.responsibleId ?? t.createdById) === currentUser.id);
 
   function counts() {
     return {
@@ -146,7 +146,7 @@ export async function initTasks(container) {
           openTaskDetail(t, async () => {
             // Refresh mine list
             const ft = await getTasks();
-            mine = ft.filter(x => x.type === 'task' && x.createdById === currentUser.id);
+            mine = ft.filter(x => x.type === 'task' && (x.responsibleId ?? x.createdById) === currentUser.id);
             renderGrid();
           });
         };
