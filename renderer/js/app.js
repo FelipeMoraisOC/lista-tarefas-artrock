@@ -214,6 +214,9 @@ onAuthChange(async firebaseUser => {
     // Não autenticado → mostrar login
     loginScreen.style.display = 'flex';
     app.style.display = 'none';
+    const loginSubmit = document.getElementById('login-submit');
+    loginSubmit.disabled = false;
+    loginSubmit.textContent = 'Entrar';
     _booted = false;
     bust(); // limpar cache de dados do usuário anterior
   }

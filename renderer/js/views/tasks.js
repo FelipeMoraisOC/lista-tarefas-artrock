@@ -39,7 +39,8 @@ function taskCard(task, categories, activityTypes, users) {
 }
 
 export async function initTasks(container) {
-  let activeStatus = 'Para Fazer';
+  let activeStatus = 'Todas';
+  let sortBy       = 'status';
   let searchText   = '';
   let searchCol    = 'name';
 
@@ -52,6 +53,7 @@ export async function initTasks(container) {
 
   function counts() {
     return {
+      Todas:          mine.length,
       'Para Fazer':   mine.filter(t => t.status === 'Para Fazer').length,
       'Em Andamento': mine.filter(t => t.status === 'Em Andamento').length,
       'Concluído':    mine.filter(t => t.status === 'Concluído').length,
@@ -59,8 +61,8 @@ export async function initTasks(container) {
   }
 
   function filtered() {
-    return mine.filter(t => {
-      if (t.status !== activeStatus) return false;
+    const list = mine.filter(t => {
+      if (activeStatus !== 'Todas' && t.status !== activeStatus) return false;
       if (!searchText.trim()) return true;
       const term = searchText.toLowerCase();
       if (searchCol === 'name')           return (t.name ?? '').toLowerCase().includes(term);
@@ -75,6 +77,26 @@ export async function initTasks(container) {
         return (a?.name ?? '').toLowerCase().includes(term);
       }
       return false;
+    });
+
+    const priorityOrder = { Alta: 0, Média: 1, Baixa: 2 };
+    const statusOrder = { 'Para Fazer': 0, 'Em Andamento': 1, 'Concluído': 2 };
+    const compareText = (a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' });
+
+    return list.sort((a, b) => {
+      let result = 0;
+      if (sortBy === 'status') {
+        result = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+      } else if (sortBy === 'priority') {
+        result = (priorityOrder[a.priority] ?? 99) - (priorityOrder[b.priority] ?? 99);
+      } else if (sortBy === 'deadline') {
+        result = (a.deadline ?? '9999-12-31').localeCompare(b.deadline ?? '9999-12-31');
+      } else if (sortBy === 'requesterId') {
+        const requesterA = users.find(u => u.id === a.requesterId)?.name ?? '';
+        const requesterB = users.find(u => u.id === b.requesterId)?.name ?? '';
+        result = compareText(requesterA, requesterB);
+      }
+      return result || compareText(a.name ?? '', b.name ?? '');
     });
   }
 
@@ -117,7 +139,10 @@ export async function initTasks(container) {
   container.innerHTML = `
     <div class="tasks-toolbar">
       <div class="status-tabs">
-        <button class="status-tab active" data-status="Para Fazer">
+        <button class="status-tab active" data-status="Todas">
+          Todas <span class="badge badge-count" id="cnt-all">${cnt.Todas}</span>
+        </button>
+        <button class="status-tab" data-status="Para Fazer">
           Para Fazer <span class="badge badge-count" id="cnt-todo">${cnt['Para Fazer']}</span>
         </button>
         <button class="status-tab" data-status="Em Andamento">
@@ -145,6 +170,16 @@ export async function initTasks(container) {
       </div>
     </div>
 
+    <div class="tasks-sort-toolbar">
+      <span class="tasks-sort-label">Ordenar por:</span>
+      <div class="tasks-sort-buttons">
+        <button type="button" class="sort-button active" data-sort="status">Status</button>
+        <button type="button" class="sort-button" data-sort="priority">Prioridade</button>
+        <button type="button" class="sort-button" data-sort="deadline">Prazo</button>
+        <button type="button" class="sort-button" data-sort="requesterId">Solicitante</button>
+      </div>
+    </div>
+
     <div class="tasks-grid" id="tasks-grid"></div>
   `;
 
@@ -156,6 +191,24 @@ export async function initTasks(container) {
       container.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       activeStatus = tab.dataset.status;
+      if (activeStatus !== 'Todas' && sortBy === 'status') {
+        sortBy = 'priority';
+      }
+      container.querySelectorAll('.sort-button').forEach(sortButton => {
+        sortButton.classList.toggle('active', sortButton.dataset.sort === sortBy);
+        sortButton.classList.toggle('hidden', sortButton.dataset.sort === 'status' && activeStatus !== 'Todas');
+      });
+      renderGrid();
+    });
+  });
+
+  container.querySelectorAll('.sort-button').forEach(sortButton => {
+    sortButton.addEventListener('click', () => {
+      if (sortButton.disabled) return;
+      sortBy = sortButton.dataset.sort;
+      container.querySelectorAll('.sort-button').forEach(button =>
+        button.classList.toggle('active', button === sortButton)
+      );
       renderGrid();
     });
   });

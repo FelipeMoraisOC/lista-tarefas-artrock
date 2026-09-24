@@ -417,7 +417,7 @@ export async function openTaskDetail(task, onSave) {
             </select>
           </div>
           <div class="tc-meta">
-            <div class="tc-meta-label">Etiquetas</div>
+            <div class="tc-meta-label">Prioridade</div>
             <select class="tc-chip-select tc-prio-${slug(W.priority)}" id="dd-priority">
               ${priorOpts.map(p => `<option value="${p}" ${W.priority === p ? 'selected' : ''}>${p}</option>`).join('')}
             </select>
