@@ -3,13 +3,19 @@
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
 import { formatDate, isOverdue } from '../utils.js';
 
+const DESCRIPTION_DRAFT_PREFIX = 'artrock:task-description-draft:';
+
+function hasDescriptionDraft(taskId) {
+  return localStorage.getItem(`${DESCRIPTION_DRAFT_PREFIX}${taskId}`) !== null;
+}
+
 function priorityBadge(p) {
   return `<span class="badge badge-priority-${p.toLowerCase()}">${p}</span>`;
 }
 function statusBadge(s) {
   return `<span class="badge badge-status-${s.toLowerCase().replace(/ /g,'-')}">${s}</span>`;
 }
-
+  
 function taskCard(task, categories, activityTypes, users) {
   const cat = categories.find(c => c.id === task.categoryId);
   const at  = activityTypes.find(a => a.id === task.activityTypeId);
@@ -17,6 +23,7 @@ function taskCard(task, categories, activityTypes, users) {
   const ov  = isOverdue(task.deadline, task.status);
   const pct = task.completionPercent ?? 0;
   const completionClass = pct >= 100 ? 'complete' : 'in-progress';
+  const hasDraft = hasDescriptionDraft(task.id);
 
   return `
     <div class="task-card${ov ? ' overdue' : ''}" data-id="${task.id}" role="button" tabindex="0">
@@ -24,6 +31,7 @@ function taskCard(task, categories, activityTypes, users) {
         <span class="task-card-name">${task.name}</span>
         ${priorityBadge(task.priority)}
       </div>
+      ${hasDraft ? '<div class="task-draft-note">📝 Descrição da tarefa não está salva</div>' : ''}
       <div class="task-card-meta">
         ${statusBadge(task.status)}
         <span class="badge completion-badge ${completionClass}">${pct}%</span>

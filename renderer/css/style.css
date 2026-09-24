@@ -706,6 +706,16 @@ input[type="range"].completion-slider.is-complete {
   margin-bottom: 8px;
 }
 
+.task-draft-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 7px;
+  color: var(--status-inprogress);
+  font-size: .72rem;
+  font-weight: 600;
+}
+
 .task-card-foot {
   display: flex;
   align-items: center;
@@ -2466,6 +2476,10 @@ input[type="range"].completion-slider.is-complete {
 
 .tc-confirm-input {
   width: 100%;
+}
+
+.tc-delete-confirm {
+  max-width: 560px;
 }
 
 @media (max-width:860px) {

@@ -35,6 +35,23 @@ const statusOpts = ['Para Fazer', 'Em Andamento', 'Concluído'];
 const priorOpts  = ['Alta', 'Média', 'Baixa'];
 
 const slug = s => s.toLowerCase().replace(/ /g, '-');
+const DESCRIPTION_DRAFT_PREFIX = 'artrock:task-description-draft:';
+
+function descriptionDraftKey(taskId) {
+  return `${DESCRIPTION_DRAFT_PREFIX}${taskId}`;
+}
+
+function getDescriptionDraft(taskId) {
+  return localStorage.getItem(descriptionDraftKey(taskId));
+}
+
+function saveDescriptionDraft(taskId, value) {
+  localStorage.setItem(descriptionDraftKey(taskId), value);
+}
+
+function clearDescriptionDraft(taskId) {
+  localStorage.removeItem(descriptionDraftKey(taskId));
+}
 
 function updateCompletionSlider(slider, label) {
   slider.classList.toggle('is-complete', Number(slider.value) === 100);
@@ -344,7 +361,13 @@ export async function openTaskDetail(task, onSave) {
   const isSub    = task.type === 'subtask';
 
   // Working copy
-  let W = { ...task, checklist: [...(task.checklist ?? [])], comments: [...(task.comments ?? [])] };
+  const localDescription = getDescriptionDraft(task.id);
+  let W = {
+    ...task,
+    description: localDescription ?? task.description,
+    checklist: [...(task.checklist ?? [])],
+    comments: [...(task.comments ?? [])],
+  };
   let showActivity = true;
 
   function markDirty() {
@@ -451,8 +474,8 @@ export async function openTaskDetail(task, onSave) {
             <div id="dd-desc-edit" style="display:none">
               <textarea class="tc-textarea" id="dd-desc-ta" rows="8">${esc(W.description ?? '')}</textarea>
               <div class="tc-inline-actions">
-                <button class="tc-btn tc-btn-primary tc-btn-sm" id="dd-desc-done">Salvar</button>
-                <button class="tc-btn tc-btn-sm tc-btn-flat" id="dd-desc-cancel">Cancelar</button>
+                <span class="tc-hint">Rascunho salvo automaticamente neste computador.</span>
+                <button class="tc-btn tc-btn-sm tc-btn-flat" id="dd-desc-close">Fechar edição</button>
               </div>
             </div>
           </div>
@@ -512,7 +535,18 @@ export async function openTaskDetail(task, onSave) {
         <div class="tc-section">
               ${sectionHead('warn', 'Ações')}
               <div class="tc-section-body">
-                <button class="tc-btn tc-btn-danger" id="dd-delete">${icon('trash', 15)} Excluir</button>
+                <div id="dd-delete-action">
+                  <button class="tc-btn tc-btn-danger" id="dd-delete">${icon('trash', 15)} Excluir</button>
+                </div>
+                <div id="dd-delete-confirm" class="tc-delete-confirm" style="display:none">
+                  <p class="tc-confirm-text">Para excluir <strong>${esc(W.name)}</strong> permanentemente, digite <strong>excluir</strong>.</p>
+                  <label class="tc-confirm-label" for="dd-delete-input">Digite "excluir" para confirmar</label>
+                  <input class="tc-input tc-confirm-input" id="dd-delete-input" type="text" autocomplete="off" />
+                  <div class="tc-inline-actions">
+                    <button class="tc-btn tc-btn-sm tc-btn-flat" id="dd-delete-cancel">Cancelar</button>
+                    <button class="tc-btn tc-btn-danger tc-btn-sm" id="dd-delete-confirm-btn" disabled>Confirmar exclusão</button>
+                  </div>
+                </div>
               </div>
             </div>
       </div>
@@ -539,12 +573,16 @@ export async function openTaskDetail(task, onSave) {
   const $ = id => document.getElementById(id);
   const root = $('_modal');
   root.classList.toggle('tc-is-done', W.status === 'Concluído');
+  if (localDescription !== null) markDirty();
 
   // ════════════════════════════════════════════════
   // Attach events
   // ════════════════════════════════════════════════
 
-  $('dd-close').onclick = closeModal;
+  $('dd-close').onclick = async () => {
+    closeModal();
+    if (onSave) await onSave();
+  };
 
   // ── Name inline edit ──
   const nameView  = $('dd-name-view');
@@ -587,20 +625,18 @@ export async function openTaskDetail(task, onSave) {
         minHeight: 180,
         autofocus: true,
       });
+      ddDescEditor.codemirror.on('change', () => {
+        W.description = ddDescEditor.value();
+        saveDescriptionDraft(W.id, W.description);
+        markDirty();
+      });
     }
   }
   descBtn.addEventListener('click', openDescEditor);
   descView.addEventListener('click', e => { if (!e.target.closest('a')) openDescEditor(); });
 
-  $('dd-desc-done').addEventListener('click', () => {
-    const val = ddDescEditor ? ddDescEditor.value() : descTa.value;
-    if (val !== (W.description ?? '')) { W.description = val; markDirty(); }
+  $('dd-desc-close').addEventListener('click', () => {
     descView.innerHTML = W.description ? renderMd(W.description) : descPlaceholder;
-    closeDescEditor();
-  });
-  $('dd-desc-cancel').addEventListener('click', () => {
-    if (ddDescEditor) ddDescEditor.value(W.description ?? '');
-    else descTa.value = W.description ?? '';
     closeDescEditor();
   });
 
@@ -818,6 +854,7 @@ export async function openTaskDetail(task, onSave) {
       // Comments are persisted on their own; don't overwrite newer ones
       const { comments, ...rest } = W;
       const updated = await updateTask(W.id, rest);
+      clearDescriptionDraft(W.id);
       W.updatedAt = updated.updatedAt;
       ['dd-hours', 'dd-start', 'dd-end'].forEach(id => setErr(id, false));
       btn.style.display = 'none';
@@ -832,22 +869,34 @@ export async function openTaskDetail(task, onSave) {
   });
 
   $('dd-delete').addEventListener('click', async () => {
-    const confirmed = await openConfirm({
-      title: 'Excluir tarefa',
-      message: `Para excluir <strong>${esc(W.name)}</strong> permanentemente, digite <strong>excluir</strong> e clique em "Confirmar exclusão".`,
-      confirmLabel: 'Confirmar exclusão',
-      danger: true,
-      requiredText: 'excluir',
-    });
-    if (!confirmed) return;
+    $('dd-delete-action').style.display = 'none';
+    $('dd-delete-confirm').style.display = 'block';
+    $('dd-delete-input').focus();
+  });
 
+  $('dd-delete-input').addEventListener('input', e => {
+    $('dd-delete-confirm-btn').disabled = e.target.value.trim().toLowerCase() !== 'excluir';
+  });
+
+  $('dd-delete-cancel').addEventListener('click', () => {
+    $('dd-delete-input').value = '';
+    $('dd-delete-confirm-btn').disabled = true;
+    $('dd-delete-confirm').style.display = 'none';
+    $('dd-delete-action').style.display = 'block';
+  });
+
+  $('dd-delete-confirm-btn').addEventListener('click', async () => {
+    const btn = $('dd-delete-confirm-btn');
+    btn.disabled = true;
     try {
       await deleteTask(W.id);
+      clearDescriptionDraft(W.id);
       showToast('Tarefa excluída!', 'success');
       if (onSave) await onSave();
       else closeModal();
     } catch (err) {
       showToast('Erro ao excluir: ' + err.message, 'error');
+      btn.disabled = false;
     }
   });
 
