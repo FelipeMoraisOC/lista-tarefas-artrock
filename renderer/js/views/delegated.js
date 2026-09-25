@@ -4,46 +4,8 @@
 // but assigned to someone else (responsibleId ≠ currentUser.id).
 
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
-import { formatDate, isOverdue } from '../utils.js';
 import { createTaskFilter, applyFilters } from '../components/task-filter.js';
-
-function priorityBadge(p) {
-  return `<span class="badge badge-priority-${p.toLowerCase()}">${p}</span>`;
-}
-function statusBadge(s) {
-  return `<span class="badge badge-status-${s.toLowerCase().replace(/ /g, '-')}">${s}</span>`;
-}
-
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function taskCard(task, categories, activityTypes, users) {
-  const cat = categories.find(c => c.id === task.categoryId);
-  const at  = activityTypes.find(a => a.id === task.activityTypeId);
-  const responsible = users.find(u => u.id === task.responsibleId);
-  const ov  = isOverdue(task.deadline, task.status);
-  const pct = task.completionPercent ?? 0;
-  const completionClass = pct >= 100 ? 'complete' : 'in-progress';
-
-  return `
-    <div class="task-card${ov ? ' overdue' : ''}" data-id="${task.id}" role="button" tabindex="0">
-      <div class="task-card-head">
-        <span class="task-card-name">${esc(task.name)}</span>
-        ${priorityBadge(task.priority)}
-      </div>
-      <div class="task-card-meta">
-        ${statusBadge(task.status)}
-        <span class="badge completion-badge ${completionClass}">${pct}%</span>
-        ${at  ? `<span class="badge badge-subtask">${esc(at.name)}</span>` : ''}
-        ${cat ? `<span class="badge badge-cat">${esc(cat.name)}</span>` : ''}
-      </div>
-      <div class="task-card-foot">
-        <span class="deadline${ov ? ' overdue' : ''}">📅 ${formatDate(task.deadline)}</span>
-        ${responsible ? `<span class="text-muted text-small">👤 ${esc(responsible.name)}</span>` : ''}
-      </div>
-    </div>`;
-}
+import { renderTaskCards } from '../components/task-card.js';
 
 export async function initDelegated(container) {
   const [allTasks, users, categories, activityTypes, currentUser] = await Promise.all([
@@ -87,22 +49,20 @@ export async function initDelegated(container) {
 
     document.getElementById('deleg-count').textContent = list.length;
 
-    if (!list.length) {
-      grid.innerHTML = `
+    renderTaskCards(grid, list, {
+      categories,
+      activityTypes,
+      users,
+      person: 'responsible',
+      emptyHtml: `
         <div class="empty-state">
           <div class="empty-icon">📋</div>
           <div class="empty-title">Nenhuma tarefa encontrada</div>
           <div class="empty-desc">Altere os filtros ou delegue uma tarefa a outro usuário.</div>
-        </div>`;
-      return;
-    }
-
-    grid.innerHTML = list.map(t => taskCard(t, categories, activityTypes, users)).join('');
-
-    grid.querySelectorAll('.task-card').forEach(card => {
-      const open = async () => {
+        </div>`,
+      async onOpen(id) {
         const fresh = await getTasks();
-        const t = fresh.find(x => x.id === card.dataset.id);
+        const t = fresh.find(x => x.id === id);
         if (!t) return;
         const { openTaskDetail } = await import('./modals.js');
         openTaskDetail(t, async () => {
@@ -117,9 +77,7 @@ export async function initDelegated(container) {
           filters = {};
           renderList();
         });
-      };
-      card.addEventListener('click', open);
-      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
+      },
     });
   }
 
@@ -145,6 +103,20 @@ export async function initDelegated(container) {
               </svg>
               <span id="deleg-dir-label">Crescente</span>
             </button>
+            <div class="sort-help-wrap">
+              <button type="button" class="sort-help-button" aria-label="Explicação dos ícones do card" aria-expanded="false">?</button>
+              <div class="sort-help-popover" role="tooltip">
+                <div class="sort-help-title">Legenda do card</div>
+                <ul class="sort-help-list">
+                  <li><span>📅</span> Prazo em dia</li>
+                  <li><span>⏰</span> Prazo vencido</li>
+                  <li><span>🚀</span> Data de início</li>
+                  <li><span>🏁</span> Data de conclusão</li>
+                  <li><span>📝</span> Rascunho não salvo</li>
+                  <li><span>👤</span> Pessoa envolvida</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
         <div class="tasks-grid" id="deleg-grid"></div>
@@ -181,6 +153,29 @@ export async function initDelegated(container) {
     document.getElementById('deleg-dir-label').textContent = sortDir === 'asc' ? 'Crescente' : 'Decrescente';
     renderList();
   });
+
+  const sortHelpWrap = container.querySelector('.sort-help-wrap');
+  const sortHelpButton = container.querySelector('.sort-help-button');
+
+  if (sortHelpButton && sortHelpWrap) {
+    const closeHelp = () => {
+      sortHelpWrap.classList.remove('open');
+      sortHelpButton.setAttribute('aria-expanded', 'false');
+    };
+
+    sortHelpButton.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = sortHelpWrap.classList.contains('open');
+      sortHelpWrap.classList.toggle('open', !isOpen);
+      sortHelpButton.setAttribute('aria-expanded', String(!isOpen));
+    });
+
+    document.addEventListener('click', e => {
+      if (!sortHelpWrap.contains(e.target)) {
+        closeHelp();
+      }
+    });
+  }
 
   renderList();
 }

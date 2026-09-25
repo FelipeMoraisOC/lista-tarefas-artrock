@@ -716,6 +716,23 @@ input[type="range"].completion-slider.is-complete {
   font-weight: 600;
 }
 
+.task-card-dates {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+}
+
+.task-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .74rem;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
 .task-card-foot {
   display: flex;
   align-items: center;
@@ -1000,6 +1017,83 @@ input[type="range"].completion-slider.is-complete {
   border-color: var(--status-inprogress);
   background: var(--status-inprogress);
   color: var(--white);
+}
+
+.sort-help-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.sort-help-button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-600);
+  font-size: .82rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--sh-xs);
+  transition: all var(--t);
+}
+
+.sort-help-button:hover,
+.sort-help-button:focus-visible {
+  border-color: var(--status-inprogress);
+  background: rgba(37, 99, 235, .06);
+  color: var(--status-inprogress);
+  outline: none;
+}
+
+.sort-help-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 220px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-md);
+  padding: 12px 12px 10px;
+  z-index: 20;
+  display: none;
+}
+
+.sort-help-wrap.open .sort-help-popover {
+  display: block;
+}
+
+.sort-help-title {
+  font-size: .76rem;
+  font-weight: 800;
+  color: var(--gray-700);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.sort-help-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: .78rem;
+  color: var(--gray-600);
+}
+
+.sort-help-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.sort-help-list span {
+  width: 18px;
+  text-align: center;
 }
 
 .tasks-grid {

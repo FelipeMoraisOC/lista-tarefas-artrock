@@ -1,49 +1,8 @@
 // ── Minhas Tarefas view ───────────────────────────────────
 
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
-import { formatDate, isOverdue } from '../utils.js';
-
-const DESCRIPTION_DRAFT_PREFIX = 'artrock:task-description-draft:';
-
-function hasDescriptionDraft(taskId) {
-  return localStorage.getItem(`${DESCRIPTION_DRAFT_PREFIX}${taskId}`) !== null;
-}
-
-function priorityBadge(p) {
-  return `<span class="badge badge-priority-${p.toLowerCase()}">${p}</span>`;
-}
-function statusBadge(s) {
-  return `<span class="badge badge-status-${s.toLowerCase().replace(/ /g,'-')}">${s}</span>`;
-}
-  
-function taskCard(task, categories, activityTypes, users) {
-  const cat = categories.find(c => c.id === task.categoryId);
-  const at  = activityTypes.find(a => a.id === task.activityTypeId);
-  const req = users.find(u => u.id === task.requesterId);
-  const ov  = isOverdue(task.deadline, task.status);
-  const pct = task.completionPercent ?? 0;
-  const completionClass = pct >= 100 ? 'complete' : 'in-progress';
-  const hasDraft = hasDescriptionDraft(task.id);
-
-  return `
-    <div class="task-card${ov ? ' overdue' : ''}" data-id="${task.id}" role="button" tabindex="0">
-      <div class="task-card-head">
-        <span class="task-card-name">${task.name}</span>
-        ${priorityBadge(task.priority)}
-      </div>
-      ${hasDraft ? '<div class="task-draft-note">📝 Descrição da tarefa não está salva</div>' : ''}
-      <div class="task-card-meta">
-        ${statusBadge(task.status)}
-        <span class="badge completion-badge ${completionClass}">${pct}%</span>
-        ${at  ? `<span class="badge badge-subtask">${at.name}</span>` : ''}
-        ${cat ? `<span class="badge badge-cat">${cat.name}</span>` : ''}
-      </div>
-      <div class="task-card-foot">
-        <span class="deadline${ov ? ' overdue' : ''}">📅 ${formatDate(task.deadline)}</span>
-        ${req ? `<span class="text-muted text-small">👤 ${req.name}</span>` : ''}
-      </div>
-    </div>`;
-}
+import { formatDate } from '../utils.js';
+import { renderTaskCards } from '../components/task-card.js';
 
 export async function initTasks(container) {
   let activeStatus = 'Todas';
@@ -127,33 +86,31 @@ export async function initTasks(container) {
     updateCounts();
     const list = filtered();
 
-    if (list.length === 0) {
-      grid.innerHTML = `
+    renderTaskCards(grid, list, {
+      categories,
+      activityTypes,
+      users,
+      person: 'requester',
+      emptyHtml: `
         <div class="empty-state" style="grid-column:1/-1">
           <div class="empty-icon">📋</div>
           <div class="empty-title">Nenhuma tarefa encontrada</div>
           <div class="empty-desc">Altere os filtros ou crie uma nova tarefa.</div>
-        </div>`;
-    } else {
-      grid.innerHTML = list.map(t => taskCard(t, categories, activityTypes, users)).join('');
-      grid.querySelectorAll('.task-card').forEach(card => {
-        const open = async () => {
-          // Refresh tasks from store (may have been modified)
-          const fresh = await getTasks();
-          const t = fresh.find(x => x.id === card.dataset.id);
-          if (!t) return;
-          const { openTaskDetail } = await import('./modals.js');
-          openTaskDetail(t, async () => {
-            // Refresh mine list
-            const ft = await getTasks();
-            mine = ft.filter(x => x.type === 'task' && (x.responsibleId ?? x.createdById) === currentUser.id);
-            renderGrid();
-          });
-        };
-        card.addEventListener('click', open);
-        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
-      });
-    }
+        </div>`,
+      async onOpen(id) {
+        // Refresh tasks from store (may have been modified)
+        const fresh = await getTasks();
+        const t = fresh.find(x => x.id === id);
+        if (!t) return;
+        const { openTaskDetail } = await import('./modals.js');
+        openTaskDetail(t, async () => {
+          // Refresh mine list
+          const ft = await getTasks();
+          mine = ft.filter(x => x.type === 'task' && (x.responsibleId ?? x.createdById) === currentUser.id);
+          renderGrid();
+        });
+      },
+    });
   }
 
   const cnt = counts();
@@ -200,6 +157,20 @@ export async function initTasks(container) {
         <button type="button" class="sort-button" data-sort="deadline">Prazo</button>
         <button type="button" class="sort-button" data-sort="requesterId">Solicitante</button>
       </div>
+      <div class="sort-help-wrap">
+        <button type="button" class="sort-help-button" aria-label="Explicação dos ícones do card" aria-expanded="false">?</button>
+        <div class="sort-help-popover" role="tooltip">
+          <div class="sort-help-title">Legenda do card</div>
+          <ul class="sort-help-list">
+            <li><span>📅</span> Prazo em dia</li>
+            <li><span>⏰</span> Prazo vencido</li>
+            <li><span>🚀</span> Data de início</li>
+            <li><span>🏁</span> Data de conclusão</li>
+            <li><span>📝</span> Rascunho não salvo</li>
+            <li><span>👤</span> Pessoa envolvida</li>
+          </ul>
+        </div>
+      </div>
     </div>
 
     <div class="tasks-grid" id="tasks-grid"></div>
@@ -234,6 +205,29 @@ export async function initTasks(container) {
       renderGrid();
     });
   });
+
+  const sortHelpWrap = container.querySelector('.sort-help-wrap');
+  const sortHelpButton = container.querySelector('.sort-help-button');
+
+  if (sortHelpButton && sortHelpWrap) {
+    const closeHelp = () => {
+      sortHelpWrap.classList.remove('open');
+      sortHelpButton.setAttribute('aria-expanded', 'false');
+    };
+
+    sortHelpButton.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = sortHelpWrap.classList.contains('open');
+      sortHelpWrap.classList.toggle('open', !isOpen);
+      sortHelpButton.setAttribute('aria-expanded', String(!isOpen));
+    });
+
+    document.addEventListener('click', e => {
+      if (!sortHelpWrap.contains(e.target)) {
+        closeHelp();
+      }
+    });
+  }
 
   // Search & filter
   document.getElementById('search-input').addEventListener('input', e => {

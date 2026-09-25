@@ -1,11 +1,13 @@
-const { autoUpdater } = require('electron-updater');
-const { dialog, BrowserWindow } = require('electron');
-
-autoUpdater.autoDownload = true;
-autoUpdater.autoInstallOnAppQuit = true;
+const { app, dialog, BrowserWindow } = require('electron');
 
 function initAutoUpdater() {
-  if (process.argv.includes('--dev')) return;
+  // Sem instalador não há como aplicar update, e exigir electron-updater
+  // fora de um app empacotado quebra a inicialização.
+  if (!app.isPackaged) return;
+
+  const { autoUpdater } = require('electron-updater');
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('update-available', (info) => {
     console.log('[updater] Update available:', info.version);

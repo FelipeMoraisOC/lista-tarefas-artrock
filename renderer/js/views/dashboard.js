@@ -2,56 +2,11 @@
 
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
 import { renderPie, renderBar } from '../components/chart.js';
-import { formatDate, isOverdue } from '../utils.js';
-
-const DESCRIPTION_DRAFT_PREFIX = 'artrock:task-description-draft:';
-
-function hasDescriptionDraft(taskId) {
-  return localStorage.getItem(`${DESCRIPTION_DRAFT_PREFIX}${taskId}`) !== null;
-}
-
-function priorityBadge(p) {
-  return `<span class="badge badge-priority-${p.toLowerCase()}">${p}</span>`;
-}
-function statusBadge(s) {
-  return `<span class="badge badge-status-${s.toLowerCase().replace(/ /g,'-')}">${s}</span>`;
-}
-
-function taskCard(task, categories, users) {
-  const cat      = categories.find(c => c.id === task.categoryId);
-  const req      = users.find(u => u.id === task.requesterId);
-  const overdue  = isOverdue(task.deadline, task.status);
-  const pct      = task.completionPercent ?? 0;
-  const completionClass = pct >= 100 ? ' complete' : '';
-  const hasDraft = hasDescriptionDraft(task.id);
-
-  return `
-    <div class="task-card${overdue ? ' overdue' : ''}" data-id="${task.id}" role="button" tabindex="0">
-      <div class="task-card-head">
-        <span class="task-card-name">${task.name}</span>
-        ${priorityBadge(task.priority)}
-      </div>
-      ${hasDraft ? '<div class="task-draft-note">📝 Descrição da tarefa não está salva</div>' : ''}
-      <div class="task-card-meta">
-        ${statusBadge(task.status)}
-        ${cat ? `<span class="badge badge-cat">${cat.name}</span>` : ''}
-      </div>
-      ${pct > 0 ? `
-        <div class="prog-wrap"><div class="prog-fill${completionClass}" style="width:${pct}%"></div></div>
-        <span class="prog-label">${pct}% concluído</span>
-      ` : ''}
-      <div class="task-card-foot">
-        <span class="deadline${overdue ? ' overdue' : ''}">
-          📅 ${formatDate(task.deadline)}
-        </span>
-        ${req ? `<span class="text-muted text-small">👤 ${req.name}</span>` : ''}
-      </div>
-    </div>`;
-}
+import { renderTaskCards } from '../components/task-card.js';
 
 export async function initDashboard(container) {
-  const [tasks, users, categories, currentUser] = await Promise.all([
-    getTasks(), getUsers(), getCategories(), getCurrentUser(),
+  const [tasks, users, categories, activityTypes, currentUser] = await Promise.all([
+    getTasks(), getUsers(), getCategories(), getActivityTypes(), getCurrentUser(),
   ]);
 
   const mine = tasks.filter(t => t.type === 'task' && (t.responsibleId ?? t.createdById) === currentUser.id);
@@ -94,11 +49,7 @@ export async function initDashboard(container) {
             <span class="section-title">🔄 Em Andamento</span>
             <span class="badge badge-status-em-andamento">${cntProg}</span>
           </div>
-          <div class="task-list" id="dash-inprogress">
-            ${inProgress.length
-              ? inProgress.map(t => taskCard(t, categories, users)).join('')
-              : '<div class="task-list-empty">Nenhuma tarefa em andamento ⚠️</div>'}
-          </div>
+          <div class="task-list" id="dash-inprogress"></div>
         </div>
 
         <div class="section-wrap">
@@ -106,11 +57,7 @@ export async function initDashboard(container) {
             <span class="section-title">⏰ Próximos Prazos</span>
             <span class="badge badge-count">${upcoming.length}</span>
           </div>
-          <div class="task-list" id="dash-upcoming">
-            ${upcoming.length
-              ? upcoming.map(t => taskCard(t, categories, users)).join('')
-              : '<div class="task-list-empty">Sem tarefas pendentes com prazo próximo.</div>'}
-          </div>
+          <div class="task-list" id="dash-upcoming"></div>
         </div>
       </div>
 
@@ -142,13 +89,25 @@ export async function initDashboard(container) {
   renderPie(document.getElementById('pieChart'), tasks, categories, currentUser.id);
   renderBar(document.getElementById('barChart'), tasks, categories, currentUser.id);
 
-  // Task card clicks
-  container.querySelectorAll('.task-card').forEach(card => {
-    const open = () => {
-      const t = tasks.find(x => x.id === card.dataset.id);
+  // Task lists
+  const cardCtx = {
+    categories,
+    activityTypes,
+    users,
+    person: 'requester',
+    onOpen(id) {
+      const t = tasks.find(x => x.id === id);
       if (t) import('./modals.js').then(m => m.openTaskDetail(t, () => initDashboard(container)));
-    };
-    card.addEventListener('click', open);
-    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
+    },
+  };
+
+  renderTaskCards(document.getElementById('dash-inprogress'), inProgress, {
+    ...cardCtx,
+    emptyHtml: '<div class="task-list-empty">Nenhuma tarefa em andamento ⚠️</div>',
+  });
+
+  renderTaskCards(document.getElementById('dash-upcoming'), upcoming, {
+    ...cardCtx,
+    emptyHtml: '<div class="task-list-empty">Sem tarefas pendentes com prazo próximo.</div>',
   });
 }
