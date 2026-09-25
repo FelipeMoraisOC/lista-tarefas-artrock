@@ -1,3 +1,5 @@
 node_modules
 dist-renderer
 scripts/serviceAccountKey.json
+release/
+*.blockmap

@@ -1,6 +1,7 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const fs   = require('fs');
+const { initAutoUpdater } = require('./updater');
 
 const IS_DEV  = process.argv.includes('--dev');
 
@@ -40,7 +41,10 @@ function createWindow() {
 }
 
 // ── App lifecycle ─────────────────────────────────────────
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  initAutoUpdater();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
