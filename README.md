@@ -1,116 +1,163 @@
-# ArtRock — Lista de Tarefas
+# ArtRock — Sistema de Gestão de Tarefas
 
-Sistema de gestão de tarefas por setor para a empresa ArtRock.  
-Aplicativo desktop construído com **Electron** — sem servidor, sem banco de dados.  
-Dados persistidos em arquivos `.json` reais no disco (`/data/*.json`).
+Sistema de gestão de tarefas por setor para a empresa ArtRock.
+Aplicativo desktop construído com **Electron** + **Firebase** (Firestore + Authentication).
 
 ---
 
-## Como executar
+## Instalação (para usuários)
+
+1. Baixe o instalador `.exe` na página de [Releases](https://github.com/FelipeMoraisOC/lista-tarefas-artrock/releases)
+2. Execute o arquivo baixado
+3. Se o Windows mostrar um aviso de proteção, clique em **"Mais informações"** e depois em **"Executar assim mesmo"**
+4. O aplicativo será instalado e abrirá automaticamente
+
+Atualizações futuras são instaladas automaticamente — o app avisa quando uma nova versão estiver pronta.
+
+---
+
+## Desenvolvimento
 
 ```bash
-# 1. Instalar dependências (apenas na primeira vez)
+# Instalar dependências
 npm install
 
-# 2. Iniciar o aplicativo
+# Modo desenvolvimento (com hot reload e DevTools)
+npm run dev
+
+# Rodar o app (build + Electron)
 npm start
 
-# 3. Modo dev (com DevTools aberto)
-npm run dev
+# Gerar instalador Windows
+npm run dist
+
+# Gerar instalador e publicar no GitHub Releases
+# (requer GH_TOKEN configurado)
+npm run dist:publish
 ```
 
-> **Requisito:** Node.js instalado em `C:\Program Files\nodejs\`
+**Requisito:** Node.js 18+
 
 ---
 
 ## Funcionalidades
 
+### Login
+- Autenticação com email e senha (Firebase Auth)
+- Recuperação de senha por email
+- Sessão persistente
+
 ### Dashboard
-- Cards de estatísticas: Para Fazer / Em Andamento / Concluídas
-- Lista de tarefas **Em Andamento** e **Próximos Prazos**
+- Cards de estatísticas: Para Fazer / Em Andamento / Concluídas + horas totais
+- Lista de tarefas em andamento e próximos prazos
 - Gráfico de pizza: horas investidas por categoria
 - Gráfico de barras empilhado: horas por dia (últimos 14 dias)
 
 ### Minhas Tarefas
 - Filtro por status: Para Fazer | Em Andamento | Concluído
 - Busca por texto com seleção de coluna (Nome, Categoria, Tipo, Prioridade, Prazo)
-- Cards com badge de prioridade e progresso
+- Ordenação por status, prioridade, prazo ou solicitante
+- Indicador de rascunho não salvo nos cards
 
-### Modal: Nova Tarefa
-- Todos os campos obrigatórios e opcionais
-- Tipo de Atividade filtrado pelo setor do usuário logado
+### Tarefas Delegadas
+- Tarefas criadas por você mas atribuídas a outros
+- Painel de filtros: prazo, datas, status, prioridade, solicitante, tipo de atividade, categoria
+- Ordenação por prazo, conclusão ou início
+
+### Criar Tarefa
+- Campos: nome, status, prioridade, prazo, solicitante, responsável, descrição
+- Tipo de atividade filtrado pelos setores do usuário
 - Categoria filtrada pelo tipo de atividade selecionado
-- Seção especial ao selecionar **Concluído**: Horas, Datas obrigatórias
+- Seletor de responsável com busca
 
-### Modal: Detalhes da Tarefa
-- **Nome** clicável → edição inline
-- **Descrição** em Markdown → clique para editar com preview
-- Todos os campos editáveis na sidebar direita
-- Botão **Salvar** aparece apenas quando há alterações
-- Lista de Sub-tarefas com acesso direto a cada uma
-- Botão **Nova Sub-tarefa**
+### Detalhes da Tarefa
+- Nome editável inline (clique para editar)
+- Descrição em Markdown com editor rico (EasyMDE) e auto-save de rascunho
+- Todos os campos editáveis na sidebar
+- Checklist com barra de progresso
+- Comentários e histórico de atividade
+- Lista de subtarefas com acesso direto
+- Exclusão com confirmação (digitar "excluir")
+
+### Subtarefas
+- Herdam tipo de atividade e categoria da tarefa pai
+- Validação: horas da subtarefa ≤ horas da tarefa pai
 
 ### Administração *(exclusivo do setor Admin)*
-Menu **Administração** visível apenas para usuários que pertencem ao setor `Admin`.
-Usuários de outros setores que acessarem `#admin` recebem a tela **Acesso restrito**.
+- **Tipos de Atividade**: criar, editar, excluir — com setores vinculados
+- **Categorias**: criar, editar, excluir — vinculadas a tipo de atividade e setores
+- **Usuários**: criar e editar usuários (UID Firebase, email, nome, iniciais, cargo, setores)
+- Proteção de integridade: itens em uso não podem ser excluídos
+- Setor "TODOS" é exclusivo (desmarca os demais)
 
-- Aba **Tipos de Atividade**: criar, editar e excluir tipos, definindo os setores com acesso
-- Aba **Categorias**: criar, editar e excluir categorias, com tipo de atividade e setores
-- Colunas de uso (quantas categorias e tarefas dependem do item) e filtro por tipo de atividade
-- Busca por nome em ambas as abas
-- Setor **TODOS** é exclusivo: ao marcá-lo, os demais setores são desmarcados
-- Validações: nome obrigatório, nome único (por tipo, no caso de categorias), ao menos um setor
-- Proteção de integridade: itens em uso por tarefas — ou tipos com categorias vinculadas —
-  não podem ser excluídos
-
-### Sub-tarefas
-- Herdam Tipo de Atividade e Categoria da tarefa pai (não editáveis)
-- Validação: horas da sub-tarefa ≤ horas da tarefa pai
-- Status Concluído sem horas é permitido (diferente de tarefa pai)
+### Auto-update
+- Verificação automática ao abrir o app
+- Download silencioso em segundo plano
+- Aviso para reiniciar quando a atualização estiver pronta
 
 ---
 
-## Troca de usuário
-O dropdown no canto inferior da sidebar permite simular diferentes usuários.  
-Cada usuário tem setores associados, o que filtra os **Tipos de Atividade** disponíveis.
+## Setores
 
-| Usuário | Setor |
+| ID | Nome |
 |---|---|
-| Carlos Silva | T.I |
-| Ana Souza | Backoffice Digital |
-| Pedro Costa | T.I + Backoffice Digital |
-| Mariana Lima | Vendas |
-| Rafael Santos | T.I + Vendas |
-| Administrador ArtRock | Admin |
+| ALL | TODOS |
+| s1 | T.I |
+| s2 | Backoffice Digital |
+| s3 | Vendas |
+| s4 | Admin |
 
 ---
 
-## Estrutura de arquivos
+## Estrutura do Projeto
 
 ```
 lista-tarefas-artrock/
-├── main.js           ← Electron main + IPC handlers
-├── preload.js        ← contextBridge seguro
-├── data/             ← Arquivos JSON (persistência real)
-│   ├── tasks.json
-│   ├── users.json
-│   ├── sectors.json
-│   ├── activity_types.json
-│   ├── categories.json
-│   └── session.json
+├── main.js                    # Electron main process
+├── preload.js                 # Preload (contextIsolation)
+├── updater.js                 # Auto-update (electron-updater)
+├── vite.config.js             # Vite config
+├── package.json               # Dependências, scripts, config do builder
+├── firebase.json              # Config Firebase
+├── firestore.rules            # Regras de segurança Firestore
+├── CLAUDE.md                  # Contexto do projeto para IA
+├── CHANGELOG.md               # Histórico de atualizações
+├── build/                     # Ícones do app
+├── data/                      # JSON legado (backup pré-Firebase)
+├── dist-renderer/             # Build do renderer (Vite)
+├── release/                   # Output do instalador (gitignored)
 └── renderer/
-    ├── index.html
-    ├── css/style.css
+    ├── index.html             # Tela de login + shell do app
+    ├── css/style.css          # Design system
     └── js/
-        ├── app.js
-        ├── store.js
-        ├── utils.js
+        ├── app.js             # Router, auth, navegação
+        ├── auth.js            # Firebase Auth
+        ├── firebase.js        # Firebase init + offline persistence
+        ├── store.js           # Camada de dados (Firestore CRUD)
+        ├── utils.js           # Utilitários
         ├── views/
-        │   ├── dashboard.js
-        │   ├── tasks.js
-        │   ├── admin.js      ← CRUD de tipos de atividade e categorias (setor Admin)
-        │   └── modals.js
+        │   ├── dashboard.js   # Dashboard com gráficos
+        │   ├── tasks.js       # Minhas Tarefas
+        │   ├── delegated.js   # Tarefas Delegadas
+        │   ├── admin.js       # Admin: tipos e categorias
+        │   ├── users.js       # Admin: gestão de usuários
+        │   └── modals.js      # Modais de criação e detalhe
         └── components/
-            ├── chart.js
-            └── markdown.js
+            ├── chart.js       # Gráficos (Chart.js)
+            ├── markdown.js    # Renderização Markdown
+            ├── editor.js      # Editor rico (EasyMDE)
+            ├── searchable-select.js  # Dropdown com busca
+            └── task-filter.js # Painel de filtros
 ```
+
+---
+
+## Tecnologias
+
+- **Electron 28** — Framework desktop
+- **Firebase** — Firestore (banco de dados) + Authentication (login)
+- **Vite** — Bundler para o renderer
+- **Chart.js** — Gráficos no dashboard
+- **EasyMDE** — Editor Markdown para descrições
+- **electron-builder** — Geração do instalador Windows
+- **electron-updater** — Atualização automática via GitHub Releases
