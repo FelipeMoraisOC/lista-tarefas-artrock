@@ -254,11 +254,27 @@ async function assertActivityTypeExists(activityTypeId) {
     throw new Error(`Tipo de atividade ${activityTypeId} não encontrado.`);
 }
 
+// Um tipo atende os setores de uma categoria quando cobre todos eles.
+// Categoria "TODOS" só pode usar tipos marcados como "TODOS".
+export function typeCoversSectors(type, sectorIds) {
+  const ts = type?.sectorIds ?? [];
+  if (!sectorIds?.length) return false;
+  if (sectorIds.includes('ALL')) return ts.includes('ALL');
+  return ts.includes('ALL') || sectorIds.every(s => ts.includes(s));
+}
+
+async function assertTypeCoversSectors(activityTypeId, sectorIds) {
+  const type = (await getActivityTypes()).find(a => a.id === activityTypeId);
+  if (!typeCoversSectors(type, sectorIds))
+    throw new Error('O tipo de atividade escolhido não atende todos os setores da categoria.');
+}
+
 export async function createCategory({ name, activityTypeId, sectorIds }) {
   await assertActivityTypeExists(activityTypeId);
   const all  = await getCategories();
   const nm   = cleanName(name, 'a categoria');
   const secs = cleanSectorIds(sectorIds);
+  await assertTypeCoversSectors(activityTypeId, secs);
   if (all.some(c => c.activityTypeId === activityTypeId && norm(c.name) === norm(nm)))
     throw new Error(`Já existe uma categoria "${nm}" neste tipo de atividade.`);
 
@@ -277,7 +293,8 @@ export async function updateCategory(id, { name, activityTypeId, sectorIds }) {
   await assertActivityTypeExists(activityTypeId);
   const nm   = cleanName(name, 'a categoria');
   const secs = cleanSectorIds(sectorIds);
-  if (all.some(c => c.id !== id && c.activityTypeId === activityTypeId && norm(c.name) === norm(nm)))
+  await assertTypeCoversSectors(activityTypeId, secs);
+  if (all.some(c => c.id !== id &&c.activityTypeId === activityTypeId && norm(c.name) === norm(nm)))
     throw new Error(`Já existe uma categoria "${nm}" neste tipo de atividade.`);
 
   const updated = { ...all[i], name: nm, activityTypeId, sectorIds: secs };

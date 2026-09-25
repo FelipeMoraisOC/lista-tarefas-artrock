@@ -2390,6 +2390,18 @@ input[type="range"].completion-slider.is-complete {
   white-space: nowrap;
 }
 
+.adm-filter-toolbar {
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.adm-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .adm-hint {
   font-size: .78rem;
   color: var(--gray-500);

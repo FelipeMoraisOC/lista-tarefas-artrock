@@ -4,7 +4,7 @@
 import {
   getSectors, getActivityTypes, getCategories, getCurrentUser, getUsageCounts, isAdmin,
   createActivityType, updateActivityType, deleteActivityType,
-  createCategory, updateCategory, deleteCategory,
+  createCategory, updateCategory, deleteCategory, typeCoversSectors,
 } from '../store.js';
 import { openShell, closeModal, openConfirm, esc, icon } from './modals.js';
 import { showToast } from '../utils.js';
@@ -181,19 +181,16 @@ function openCategoryForm({ model, sectors, types, presetTypeId, onDone }) {
             placeholder="Ex: Preparação" value="${esc(model?.name ?? '')}" />
         </div>
 
-        <div class="tc-field adm-form-field">
-          <div class="tc-meta-label req">Tipo de Atividade</div>
-          <select class="tc-input" id="af-at">
-            <option value="">Selecione...</option>
-            ${types.map(t => `<option value="${t.id}" ${t.id === atId ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
-          </select>
-          <div class="tc-hint" id="af-at-hint"></div>
-        </div>
-
         <div class="adm-form-field">
           <div class="tc-meta-label req">Setores com acesso</div>
           ${sectorPicker(sectors, model?.sectorIds)}
           <div class="tc-hint">A categoria só aparece para usuários dos setores marcados.</div>
+        </div>
+
+        <div class="tc-field adm-form-field">
+          <div class="tc-meta-label req">Tipo de Atividade</div>
+          <select class="tc-input" id="af-at"></select>
+          <div class="tc-hint" id="af-at-hint"></div>
         </div>
       </div>
     </div>
@@ -217,8 +214,31 @@ function openCategoryForm({ model, sectors, types, presetTypeId, onDone }) {
       ? `Setores do tipo: ${t.sectorIds.map(id => sectorName(id, sectors)).join(', ')}`
       : '';
   }
+
+  // Os setores marcados filtram os tipos disponíveis.
+  function renderTypeOptions() {
+    const secs = readSectors();
+    const keep = at.value || atId;
+    const opts = types.filter(t => typeCoversSectors(t, secs));
+
+    if (!secs.length) {
+      at.innerHTML = '<option value="">Selecione os setores primeiro...</option>';
+      at.disabled  = true;
+    } else if (!opts.length) {
+      at.innerHTML = '<option value="">Nenhum tipo disponível para estes setores</option>';
+      at.disabled  = true;
+    } else {
+      at.innerHTML = '<option value="">Selecione...</option>' + opts
+        .map(t => `<option value="${t.id}" ${t.id === keep ? 'selected' : ''}>${esc(t.name)}</option>`)
+        .join('');
+      at.disabled  = false;
+    }
+    updateHint();
+  }
+
+  document.getElementById('af-sectors').addEventListener('change', renderTypeOptions);
   at.addEventListener('change', updateHint);
-  updateHint();
+  renderTypeOptions();
 
   name.focus();
   name.select();
@@ -250,9 +270,34 @@ export async function initAdmin(container) {
   const currentUser = await getCurrentUser();
   if (!await isAdmin(currentUser)) { renderAccessDenied(container); return; }
 
-  let tab        = 'types';   // 'types' | 'cats'
-  let search     = '';
-  let typeFilter = '';        // filtro por tipo na aba Categorias
+  let tab          = 'types';   // 'types' | 'cats'
+  let search       = '';
+  let typeFilter   = '';        // filtro por tipo na aba Categorias
+  let sectorFilter = '';        // filtro por setor (ambas as abas)
+  let usageFilter  = '';        // '' | 'used' | 'unused'
+
+  // Ordenação lembrada por aba — dir: 1 crescente, -1 decrescente
+  const sort = {
+    types: { key: 'name', dir: 1 },
+    cats:  { key: 'name', dir: 1 },
+  };
+
+  const SORT_OPTIONS = {
+    types: [
+      { key: 'name',    label: 'Nome' },
+      { key: 'sectors', label: 'Setores' },
+      { key: 'cats',    label: 'Categorias' },
+      { key: 'tasks',   label: 'Tarefas' },
+    ],
+    cats: [
+      { key: 'name',    label: 'Nome' },
+      { key: 'type',    label: 'Tipo de Atividade' },
+      { key: 'sectors', label: 'Setores' },
+      { key: 'tasks',   label: 'Tarefas' },
+    ],
+  };
+
+  const NUMERIC_SORTS = new Set(['cats', 'tasks']);
 
   let sectors = [], types = [], cats = [], usage = { byActivityType: {}, byCategory: {} };
 
@@ -264,10 +309,44 @@ export async function initAdmin(container) {
 
   const matches = text => !search.trim() || String(text ?? '').toLowerCase().includes(search.trim().toLowerCase());
 
+  const typeName    = id => types.find(t => t.id === id)?.name ?? '';
+  const sectorsText = ids => (ids ?? []).map(id => sectorName(id, sectors)).join(', ');
+  const catCount    = typeId => cats.filter(c => c.activityTypeId === typeId).length;
+  const taskCount   = item => tab === 'types'
+    ? (usage.byActivityType[item.id] ?? 0)
+    : (usage.byCategory[item.id] ?? 0);
+
+  function passesCommonFilters(item) {
+    if (!matches(item.name)) return false;
+    if (sectorFilter && !item.sectorIds?.includes(sectorFilter)) return false;
+    if (usageFilter === 'used'   && !taskCount(item)) return false;
+    if (usageFilter === 'unused' &&  taskCount(item)) return false;
+    return true;
+  }
+
+  function sortRows(rows) {
+    const { key, dir } = sort[tab];
+    const cmpText = (a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' });
+    const value = item => {
+      switch (key) {
+        case 'sectors': return sectorsText(item.sectorIds);
+        case 'type':    return typeName(item.activityTypeId);
+        case 'cats':    return catCount(item.id);
+        case 'tasks':   return taskCount(item);
+        default:        return item.name ?? '';
+      }
+    };
+    return [...rows].sort((a, b) => {
+      const va = value(a), vb = value(b);
+      const c  = typeof va === 'number' ? va - vb : cmpText(va, vb);
+      return c * dir || cmpText(a.name ?? '', b.name ?? '');
+    });
+  }
+
   // ── Tabelas ──
 
   function typesTable() {
-    const rows = types.filter(t => matches(t.name));
+    const rows = sortRows(types.filter(passesCommonFilters));
     return `
       <table class="adm-table">
         <thead>
@@ -284,7 +363,7 @@ export async function initAdmin(container) {
             <tr data-id="${t.id}">
               <td><span class="adm-name">${esc(t.name)}</span></td>
               <td>${sectorBadges(t.sectorIds, sectors)}</td>
-              <td class="adm-num">${usageBadge(cats.filter(c => c.activityTypeId === t.id).length)}</td>
+              <td class="adm-num">${usageBadge(catCount(t.id))}</td>
               <td class="adm-num">${usageBadge(usage.byActivityType[t.id] ?? 0)}</td>
               <td class="adm-actions-col">${rowActions(t.id, t.name)}</td>
             </tr>`).join('')
@@ -294,9 +373,9 @@ export async function initAdmin(container) {
   }
 
   function catsTable() {
-    const rows = cats.filter(c =>
-      matches(c.name) && (!typeFilter || c.activityTypeId === typeFilter)
-    );
+    const rows = sortRows(cats.filter(c =>
+      passesCommonFilters(c) && (!typeFilter || c.activityTypeId === typeFilter)
+    ));
     return `
       <table class="adm-table">
         <thead>
@@ -400,6 +479,34 @@ export async function initAdmin(container) {
     filter.innerHTML = `
       <option value="">Todos os tipos</option>
       ${types.map(t => `<option value="${t.id}" ${t.id === typeFilter ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}`;
+
+    document.getElementById('adm-sector-filter').innerHTML = `
+      <option value="">Todos os setores</option>
+      ${sectors.map(s => `<option value="${s.id}" ${s.id === sectorFilter ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}`;
+
+    document.getElementById('adm-usage-filter').value = usageFilter;
+
+    renderSortButtons();
+    updateClearButton();
+  }
+
+  function renderSortButtons() {
+    const { key, dir } = sort[tab];
+    document.getElementById('adm-sort-buttons').innerHTML = SORT_OPTIONS[tab].map(o => `
+      <button type="button" class="sort-button${o.key === key ? ' active' : ''}" data-sort="${o.key}"
+        title="${o.key === key ? 'Clique para inverter a ordem' : `Ordenar por ${esc(o.label)}`}">
+        ${esc(o.label)}${o.key === key ? (dir === 1 ? ' ↑' : ' ↓') : ''}
+      </button>`).join('');
+  }
+
+  function updateClearButton() {
+    const active = search.trim() || typeFilter || sectorFilter || usageFilter;
+    document.getElementById('adm-clear').classList.toggle('hidden', !active);
+  }
+
+  function onFiltersChanged() {
+    updateClearButton();
+    renderBody();
   }
 
   async function refresh() {
@@ -428,10 +535,28 @@ export async function initAdmin(container) {
           </svg>
           <input type="text" class="search-input" id="search-input" placeholder="Buscar..." />
         </div>
-        <select class="filter-select hidden" id="adm-type-filter"></select>
         <button class="btn btn-primary btn-sm" id="adm-new">
           ${icon('plus', 15)} <span id="adm-new-label">Novo Tipo</span>
         </button>
+      </div>
+    </div>
+
+    <div class="tasks-sort-toolbar adm-filter-toolbar">
+      <div class="adm-filter-group">
+        <span class="tasks-sort-label">Filtrar:</span>
+        <select class="filter-select" id="adm-sector-filter" title="Filtrar por setor"></select>
+        <select class="filter-select hidden" id="adm-type-filter" title="Filtrar por tipo de atividade"></select>
+        <select class="filter-select" id="adm-usage-filter" title="Filtrar por uso em tarefas">
+          <option value="">Uso: todos</option>
+          <option value="used">Em uso</option>
+          <option value="unused">Sem uso</option>
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm hidden" id="adm-clear">Limpar filtros</button>
+      </div>
+
+      <div class="adm-filter-group">
+        <span class="tasks-sort-label">Ordenar por:</span>
+        <div class="tasks-sort-buttons" id="adm-sort-buttons"></div>
       </div>
     </div>
 
@@ -447,21 +572,44 @@ export async function initAdmin(container) {
   container.querySelectorAll('.status-tab').forEach(t => {
     t.addEventListener('click', () => {
       tab = t.dataset.tab;
-      search = '';
-      typeFilter = '';
-      document.getElementById('search-input').value = '';
-      renderChrome();
-      renderBody();
+      clearFilters();
     });
   });
 
-  // Busca / filtro
+  function clearFilters() {
+    search = typeFilter = sectorFilter = usageFilter = '';
+    document.getElementById('search-input').value = '';
+    renderChrome();
+    renderBody();
+  }
+
+  // Busca / filtros
   document.getElementById('search-input').addEventListener('input', e => {
     search = e.target.value;
-    renderBody();
+    onFiltersChanged();
   });
   document.getElementById('adm-type-filter').addEventListener('change', e => {
     typeFilter = e.target.value;
+    onFiltersChanged();
+  });
+  document.getElementById('adm-sector-filter').addEventListener('change', e => {
+    sectorFilter = e.target.value;
+    onFiltersChanged();
+  });
+  document.getElementById('adm-usage-filter').addEventListener('change', e => {
+    usageFilter = e.target.value;
+    onFiltersChanged();
+  });
+  document.getElementById('adm-clear').addEventListener('click', clearFilters);
+
+  // Ordenação — clicar no critério ativo inverte a direção
+  document.getElementById('adm-sort-buttons').addEventListener('click', e => {
+    const btn = e.target.closest('[data-sort]');
+    if (!btn) return;
+    const s = sort[tab];
+    if (s.key === btn.dataset.sort) s.dir *= -1;
+    else { s.key = btn.dataset.sort; s.dir = NUMERIC_SORTS.has(s.key) ? -1 : 1; }  // contagens: maior primeiro
+    renderSortButtons();
     renderBody();
   });
 
