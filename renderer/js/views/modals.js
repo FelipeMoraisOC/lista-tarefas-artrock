@@ -8,7 +8,8 @@ import {
 import { renderMd } from '../components/markdown.js';
 import { initEditor, destroyAllEditors } from '../components/editor.js';
 import { createSearchableSelect } from '../components/searchable-select.js';
-import { showToast, formatDatetime, todayISO, generateId, responsibleOf } from '../utils.js';
+import { showToast, formatDatetime, formatDuration, todayISO, generateId, responsibleOf } from '../utils.js';
+import { timerHoursFor, syncTimerHours, commitTimerIfActive, onTimerTick } from '../components/task-timer.js';
 
 // ── Modal shell helpers ───────────────────────────────────
 
@@ -524,6 +525,13 @@ export async function openTaskDetail(task, onSave) {
   };
   let showActivity = true;
 
+  // Timer do menu: horas ao vivo (tarefa ativa) ou gravadas por ele há pouco
+  const openedAt = Date.now();
+  const timerAtOpen = timerHoursFor(task.id);
+  if (timerAtOpen) W.hoursInvested = timerAtOpen.hours;
+  let hoursEdited = false;   // o usuário mexeu em Horas Investidas → vale o valor digitado
+  const round2 = h => (h == null ? '' : Math.round(h * 100) / 100);
+
   function markDirty() {
     if (readOnly) return;
     const btn = document.getElementById('dd-save');
@@ -675,7 +683,8 @@ export async function openTaskDetail(task, onSave) {
             </div>
             <div class="tc-field">
               <div class="tc-meta-label ${!isSub ? 'tc-req-done' : ''}">Horas Investidas</div>
-              <input type="number" class="tc-input" id="dd-hours" value="${W.hoursInvested ?? ''}" min="0" step="0.5" placeholder="—" />
+              <input type="number" class="tc-input" id="dd-hours" value="${round2(W.hoursInvested)}" min="0" step="any" placeholder="—" />
+              <div class="tc-hint tc-timer-hint" id="dd-hours-live"></div>
             </div>
             <div class="tc-field">
               <div class="tc-meta-label">% de Conclusão</div>
@@ -895,7 +904,11 @@ export async function openTaskDetail(task, onSave) {
   Object.entries(simpleFields).forEach(([id, field]) => {
     $(id)?.addEventListener('change', e => { W[field] = e.target.value || null; markDirty(); });
   });
-  $('dd-hours').addEventListener('change', e => { W.hoursInvested = parseFloat(e.target.value) || null; markDirty(); });
+  $('dd-hours').addEventListener('change', e => {
+    W.hoursInvested = parseFloat(e.target.value) || null;
+    hoursEdited = true;
+    markDirty();
+  });
 
   $('dd-pct').addEventListener('input', e => {
     W.completionPercent = parseInt(e.target.value);
@@ -1032,6 +1045,14 @@ export async function openTaskDetail(task, onSave) {
 
   // ── Save ──
   $('dd-save').addEventListener('click', async () => {
+    // Sem edição manual das horas, grava o valor mais novo do timer
+    // (evita sobrescrever com o valor de quando o detalhe foi aberto).
+    const capturedAt = Date.now();
+    if (!hoursEdited) {
+      const fromTimer = timerHoursFor(W.id, openedAt);
+      if (fromTimer) W.hoursInvested = fromTimer.hours;
+    }
+
     // Validate completed task
     if (W.status === 'Concluído' && !isSub) {
       if (!(W.hoursInvested > 0) || !W.startDate || !W.endDate) {
@@ -1057,6 +1078,8 @@ export async function openTaskDetail(task, onSave) {
 
     try {
       const updated = await updateTask(W.id, W);
+      syncTimerHours(W.id, W.hoursInvested, capturedAt);   // o timer passa a contar deste valor
+      hoursEdited = false;
       clearDescriptionDraft(W.id);
       W.updatedAt = updated.updatedAt;
       ['dd-hours', 'dd-start', 'dd-end'].forEach(id => setErr(id, false));
@@ -1102,6 +1125,25 @@ export async function openTaskDetail(task, onSave) {
       btn.disabled = false;
     }
   });
+
+  // ── Timer do menu: horas ao vivo + gravar ao fechar o detalhe ──
+  function paintTimerHours() {
+    const live = timerHoursFor(W.id);
+    const hint = $('dd-hours-live');
+    if (!live?.live) { hint.textContent = ''; return; }
+    hint.textContent = `⏱ Timer rodando — ${formatDuration(live.hours * 3600)}`;
+    const input = $('dd-hours');
+    if (!hoursEdited && document.activeElement !== input) input.value = round2(live.hours);
+  }
+  const stopTimerTick = onTimerTick(() => {
+    if (!root.isConnected) {          // detalhe fechado (X, Esc, fundo ou troca de modal)
+      stopTimerTick();
+      commitTimerIfActive(W.id);
+      return;
+    }
+    paintTimerHours();
+  });
+  paintTimerHours();
 
   // ── Modo visualização: bloqueia todos os campos ──
   if (readOnly) {

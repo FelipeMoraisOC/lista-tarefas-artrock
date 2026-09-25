@@ -27,7 +27,7 @@ Interface 100% em **português (pt-BR)**.
 ```
 lista-tarefas-artrock/
 ├── main.js                    # Electron main process, BrowserWindow, auto-updater init
-├── preload.js                 # Vazio (contextIsolation ativo, sem IPC)
+├── preload.js                 # Ponte mínima (contextBridge): window.appLifecycle.onBeforeClose
 ├── updater.js                 # Auto-update via electron-updater
 ├── vite.config.js             # Vite config (root: renderer, output: dist-renderer)
 ├── package.json               # Deps, scripts, electron-builder config
@@ -63,7 +63,8 @@ lista-tarefas-artrock/
             ├── markdown.js    # Wrapper marked.js
             ├── editor.js      # Wrapper EasyMDE
             ├── searchable-select.js  # Dropdown com busca
-            └── task-filter.js # Painel de filtros reutilizável
+            ├── task-filter.js # Painel de filtros reutilizável
+            └── task-timer.js  # Timer das tarefas em andamento (menu lateral)
 ```
 
 ---
@@ -124,6 +125,8 @@ comments [{id, userId, text, createdAt, isSystem?}]
 9. **Admin: Categorias** — CRUD com tipo de atividade e setores, proteção de integridade
 10. **Admin: Usuários** — Criar/editar usuários (UID Firebase, email, nome, iniciais, cargo, setores)
 11. **Auto-update** — Verifica GitHub Releases, download silencioso, dialog para reiniciar
+12. **Backlog** — Setores → tipos de atividade → tabela de tarefas; criação com setor e sem responsável
+13. **Timer (menu lateral)** — Tarefas "Em Andamento" do usuário; a do topo conta tempo. Arrastar reordena/troca a ativa, arrastar acima da lista conclui (com Desfazer), botão direito adiciona 5/10/15/30 min
 
 ---
 
@@ -136,6 +139,9 @@ comments [{id, userId, text, createdAt, isSystem?}]
 - Modais criados dinamicamente no DOM, destruídos ao fechar.
 - Editores EasyMDE destruídos via `destroyAllEditors()` ao fechar modais.
 - Offline persistence habilitado via `enableIndexedDbPersistence`.
+- Escritas em tarefas disparam `window` event `tasks-changed` (store.js) — o timer escuta para recarregar.
+- Timer: `hoursInvested` é a fonte da verdade; gravações sempre com valor **absoluto** (idempotentes). Estado local em `localStorage` (`artrock:timer:<uid>`). Grava no Firebase só ao pausar, trocar a ativa, concluir, adicionar tempo, salvar/fechar o detalhe, sair e fechar o app.
+- Fechar a janela: `main.js` segura o `close`, envia `app:before-close`, o renderer grava o timer e responde `app:close-ready` (limite de 4s).
 
 ---
 

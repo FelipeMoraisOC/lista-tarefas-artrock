@@ -7,6 +7,7 @@ import { initUsers } from './views/users.js';
 import { initDelegated } from './views/delegated.js';
 import { initBacklog } from './views/backlog.js';
 import { openCreateTask } from './views/modals.js';
+import { initTaskTimer, teardownTaskTimer, flushTaskTimer, stopTaskTimer } from './components/task-timer.js';
 import { getUsers, setCurrentUser, getCurrentUser, isAdmin, bust } from './store.js';
 import { onAuthChange, loginWithEmail, logout, resetPassword } from './auth.js';
 import { showToast } from './utils.js';
@@ -67,6 +68,19 @@ function currentPage() {
   return (location.hash || '#dashboard').replace('#', '') || 'dashboard';
 }
 
+// ── Timer das tarefas em andamento (menu lateral) ─────────
+
+async function startTaskTimer() {
+  const user = await getCurrentUser();
+  if (!user) return;
+  // Quando o timer conclui uma tarefa (ou salva pelo detalhe), recarrega a tela atual
+  initTaskTimer(user, { onDataChanged: () => navigate(currentPage()) })
+    .catch(err => console.error('[timer] Falha ao iniciar', err));
+}
+
+// Ao fechar a janela, o main process espera o timer gravar (ver preload.js)
+window.appLifecycle?.onBeforeClose(() => flushTaskTimer());
+
 // ── User info + user-switcher (dev) ───────────────────────
 
 async function initUserInfo() {
@@ -95,11 +109,13 @@ async function initUserInfo() {
     sel.value = currentUser.id;
 
     sel.addEventListener('change', async e => {
+      await stopTaskTimer();
       await setCurrentUser(e.target.value);
       bust(); // limpar cache para re-ler dados do novo usuário
       const u = users.find(x => x.id === e.target.value);
       if (u) updateUI(u);
       navigate(currentPage());
+      startTaskTimer();
     });
   }
 }
@@ -171,11 +187,13 @@ async function boot() {
     bust();
     await initUserInfo();
     navigate(currentPage());
+    startTaskTimer();
     return;
   }
   _booted = true;
 
   await initUserInfo();
+  startTaskTimer();
 
   // "Nova Tarefa" button
   document.getElementById('btn-new-task').addEventListener('click', () => {
@@ -184,6 +202,7 @@ async function boot() {
 
   // Logout
   document.getElementById('btn-logout').addEventListener('click', async () => {
+    await stopTaskTimer();   // pausa e grava o tempo antes de perder a sessão
     await logout();
     // onAuthChange cuida de esconder o app e mostrar login
   });
@@ -226,6 +245,7 @@ onAuthChange(async firebaseUser => {
     loginSubmit.disabled = false;
     loginSubmit.textContent = 'Entrar';
     _booted = false;
+    teardownTaskTimer();
     bust(); // limpar cache de dados do usuário anterior
   }
 });

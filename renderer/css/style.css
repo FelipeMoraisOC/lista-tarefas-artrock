@@ -162,7 +162,7 @@ ol {
 
 /* Nav */
 .sidebar-nav {
-  flex: 1;
+  flex: 0 0 auto;
   padding: 14px 10px;
   display: flex;
   flex-direction: column;
@@ -211,6 +211,7 @@ ol {
 
 /* Footer */
 .sidebar-footer {
+  margin-top: auto;
   padding: 14px 12px;
   border-top: 1px solid rgba(255, 255, 255, .07);
 }
@@ -3746,6 +3747,341 @@ select.tc-input {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* ── Timer das tarefas em andamento (menu lateral) ───────── */
+.task-timer {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 4px 10px 12px;
+  padding: 12px 10px 10px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .06);
+  user-select: none;
+}
+
+.tt-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 10px;
+}
+
+.tt-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+}
+
+.tt-count {
+  margin-left: auto;
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--gray-400);
+  background: rgba(255, 255, 255, .08);
+  border-radius: var(--r-full);
+  padding: 1px 8px;
+}
+
+/* Zona "Solte para concluir" — cobre o cabeçalho durante o arraste */
+.tt-done-zone {
+  position: absolute;
+  inset: -6px -4px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1.5px dashed rgba(22, 163, 74, .55);
+  border-radius: var(--r-sm);
+  background: rgba(22, 163, 74, .08);
+  color: #4ade80;
+  font-size: .74rem;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t), background var(--t), transform var(--t);
+}
+
+.task-timer.is-dragging .tt-done-zone {
+  opacity: 1;
+}
+
+.task-timer.is-over-done .tt-done-zone {
+  background: rgba(22, 163, 74, .28);
+  border-style: solid;
+  color: #fff;
+  transform: scale(1.03);
+}
+
+.tt-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-timer.is-dragging .tt-list {
+  overflow: visible;
+}
+
+.tt-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid transparent;
+  color: var(--gray-300);
+  font-size: .8rem;
+  cursor: grab;
+  touch-action: none;
+  transition: transform 160ms ease, background var(--t), border-color var(--t);
+}
+
+.tt-item:hover {
+  background: rgba(255, 255, 255, .09);
+}
+
+.tt-item:focus-visible {
+  outline: 2px solid var(--status-inprogress);
+  outline-offset: 1px;
+}
+
+.tt-item.is-top {
+  border-color: rgba(37, 99, 235, .45);
+  background: rgba(37, 99, 235, .14);
+  color: var(--white);
+}
+
+.tt-item.is-dragged {
+  position: relative;
+  z-index: 2;
+  cursor: grabbing;
+  transition: none;
+  background: #2b2d31;
+  box-shadow: var(--sh-lg);
+}
+
+.task-timer.is-over-done .tt-item.is-dragged {
+  border-color: var(--status-done);
+  background: rgba(22, 163, 74, .35);
+}
+
+.tt-item.is-completing {
+  animation: ttComplete 420ms cubic-bezier(.5, 0, .75, 0) forwards;
+  border-color: var(--status-done);
+  background: rgba(22, 163, 74, .45);
+}
+
+/* --tt-y: posição em que a tarefa foi solta (definida no JS) */
+@keyframes ttComplete {
+  0%   { transform: translateY(var(--tt-y, 0px)) scale(1); opacity: 1; }
+  40%  { transform: translateY(calc(var(--tt-y, 0px) - 10px)) scale(1.04); opacity: 1; }
+  100% { transform: translateY(calc(var(--tt-y, 0px) - 46px)) scale(.85); opacity: 0; }
+}
+
+.tt-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--gray-600);
+}
+
+.tt-item.is-top .tt-dot {
+  background: var(--status-inprogress);
+}
+
+.tt-item.is-running .tt-dot {
+  background: var(--status-done);
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, .6);
+  animation: ttPulse 1.6s ease-out infinite;
+}
+
+@keyframes ttPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, .6); }
+  70%  { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.tt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tt-time {
+  flex-shrink: 0;
+  font-size: .76rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--gray-400);
+}
+
+.tt-item.is-running .tt-time {
+  color: #4ade80;
+}
+
+.tt-empty {
+  padding: 10px 4px;
+  font-size: .78rem;
+  color: var(--gray-500);
+  text-align: center;
+}
+
+.tt-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tt-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .06);
+  color: var(--gray-300);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t);
+}
+
+.tt-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .12);
+  color: var(--white);
+}
+
+.tt-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.tt-btn-play {
+  background: var(--status-done);
+  border-color: var(--status-done);
+  color: var(--white);
+}
+
+.tt-btn-play:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.tt-btn-play.is-running {
+  background: rgba(217, 119, 6, .2);
+  border-color: rgba(217, 119, 6, .6);
+  color: #fbbf24;
+}
+
+.tt-btn-play.is-running:hover:not(:disabled) {
+  background: rgba(217, 119, 6, .32);
+  color: #fcd34d;
+}
+
+.tt-hint {
+  margin-top: 8px;
+  font-size: .68rem;
+  line-height: 1.4;
+  color: var(--gray-500);
+  text-align: center;
+}
+
+/* Menu do botão direito */
+.tt-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 170px;
+  padding: 6px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-lg);
+  animation: ssDropIn 120ms ease;
+}
+
+.tt-menu-title {
+  padding: 4px 10px 6px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+}
+
+.tt-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--gray-700);
+  font: inherit;
+  font-size: .82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tt-menu-item:hover,
+.tt-menu-item:focus-visible {
+  background: var(--gray-100);
+  outline: none;
+}
+
+.tt-menu-sep {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--gray-200);
+}
+
+/* Horas ao vivo no detalhe da tarefa */
+.tc-timer-hint:empty {
+  display: none;
+}
+
+.tc-timer-hint {
+  margin-top: 4px;
+  color: var(--status-done);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Botão de ação no toast (ex.: Desfazer) */
+.toast-action {
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--white);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.toast-action:hover {
+  background: rgba(255, 255, 255, .12);
 }
 
 /* ── Dev-only (visível apenas com --dev) ─────────────────── */

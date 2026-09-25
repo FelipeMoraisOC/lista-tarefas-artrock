@@ -86,6 +86,12 @@ function newId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// Avisa quem acompanha as tarefas (ex.: timer do menu) que algo mudou.
+function tasksChanged() {
+  bust('tasks');
+  window.dispatchEvent(new Event('tasks-changed'));
+}
+
 export async function createTask(data) {
   const id = newId(data.type === 'subtask' ? 'sub' : 'task');
   const task = {
@@ -95,7 +101,7 @@ export async function createTask(data) {
     updatedAt: new Date().toISOString(),
   };
   await setDoc(doc(db, 'tasks', id), task);
-  bust('tasks');
+  tasksChanged();
   return task;
 }
 
@@ -106,8 +112,15 @@ export async function updateTask(id, updates) {
 
   const merged = { ...updates, updatedAt: new Date().toISOString() };
   await updateDoc(docRef, merged);
-  bust('tasks');
+  tasksChanged();
   return { ...snap.data(), ...merged, id };
+}
+
+// Escrita direta, sem leitura prévia — usada pelo timer. A gravação entra na
+// fila offline do Firestore na hora, mesmo sem conexão ou com o app fechando.
+export async function patchTask(id, fields) {
+  await updateDoc(doc(db, 'tasks', id), { ...fields, updatedAt: new Date().toISOString() });
+  tasksChanged();
 }
 
 export async function deleteTask(id) {
@@ -120,7 +133,7 @@ export async function deleteTask(id) {
   subs.forEach(s => batch.delete(s.ref));
 
   await batch.commit();
-  bust('tasks');
+  tasksChanged();
 }
 
 // ── User management (admin) ──────────────────────────────

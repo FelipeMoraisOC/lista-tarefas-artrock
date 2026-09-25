@@ -3,7 +3,7 @@
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
 import { renderPie, renderBar } from '../components/chart.js';
 import { renderTaskCards } from '../components/task-card.js';
-import { responsibleOf } from '../utils.js';
+import { responsibleOf, formatHours } from '../utils.js';
 
 export async function initDashboard(container) {
   const [tasks, users, categories, activityTypes, currentUser] = await Promise.all([
@@ -38,7 +38,7 @@ export async function initDashboard(container) {
       <div class="stat-card">
         <div class="stat-label">Concluídas</div>
         <div class="stat-value green">${cntDone}</div>
-        <div class="stat-sub">${totalHours}h investidas</div>
+        <div class="stat-sub">${formatHours(totalHours)} investidas</div>
       </div>
     </div>
 

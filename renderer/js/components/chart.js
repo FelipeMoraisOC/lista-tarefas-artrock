@@ -1,6 +1,6 @@
 // ── Chart.js wrappers ─────────────────────────────────────
 
-import { responsibleOf } from '../utils.js';
+import { responsibleOf, formatHours } from '../utils.js';
 
 const CAT_COLORS = {
   c1: '#E8201E',
@@ -61,7 +61,7 @@ export function renderPie(canvas, tasks, categories, userId) {
           labels: { font: { family: 'Inter', size: 11 }, color: '#555', padding: 14,
                     usePointStyle: true, pointStyleWidth: 8 },
         },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}h` } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${formatHours(ctx.raw)}` } },
       },
     },
   });
@@ -116,7 +116,7 @@ export function renderBar(canvas, tasks, categories, userId) {
           labels: { font: { family: 'Inter', size: 11 }, color: '#555',
                     usePointStyle: true, pointStyleWidth: 8 },
         },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}h` } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatHours(ctx.raw)}` } },
       },
       scales: {
         x: { stacked: true, grid: { display: false },
