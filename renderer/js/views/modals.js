@@ -1130,10 +1130,12 @@ export async function openTaskDetail(task, onSave) {
   function paintTimerHours() {
     const live = timerHoursFor(W.id);
     const hint = $('dd-hours-live');
-    if (!live?.live) { hint.textContent = ''; return; }
-    hint.textContent = `⏱ Timer rodando — ${formatDuration(live.hours * 3600)}`;
+    const text = live?.live ? `⏱ Timer rodando — ${formatDuration(live.hours * 3600)}` : '';
+    if (hint.textContent !== text) hint.textContent = text;
+    if (!live?.live) return;
     const input = $('dd-hours');
-    if (!hoursEdited && document.activeElement !== input) input.value = round2(live.hours);
+    const value = String(round2(live.hours));
+    if (!hoursEdited && document.activeElement !== input && input.value !== value) input.value = value;
   }
   const stopTimerTick = onTimerTick(() => {
     if (!root.isConnected) {          // detalhe fechado (X, Esc, fundo ou troca de modal)

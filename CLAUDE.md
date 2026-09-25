@@ -57,6 +57,7 @@ lista-tarefas-artrock/
         │   ├── delegated.js   # Tarefas Delegadas: filtro lateral + grid
         │   ├── admin.js       # Admin: CRUD tipos de atividade + categorias
         │   ├── users.js       # Admin: gestão de usuários (criar/editar)
+        │   ├── settings.js    # Configurações: perfil, ativar/desativar timer, recarregar, sair
         │   └── modals.js      # Modais: criar tarefa, detalhe da tarefa, confirmação
         └── components/
             ├── chart.js       # Wrappers Chart.js (pie e bar)
@@ -126,7 +127,8 @@ comments [{id, userId, text, createdAt, isSystem?}]
 10. **Admin: Usuários** — Criar/editar usuários (UID Firebase, email, nome, iniciais, cargo, setores)
 11. **Auto-update** — Verifica GitHub Releases, download silencioso, dialog para reiniciar
 12. **Backlog** — Setores → tipos de atividade → tabela de tarefas; criação com setor e sem responsável
-13. **Timer (menu lateral)** — Tarefas "Em Andamento" do usuário; a do topo conta tempo. Arrastar reordena/troca a ativa, arrastar acima da lista conclui (com Desfazer), botão direito adiciona 5/10/15/30 min
+13. **Timer (menu lateral)** — Tarefas "Em Andamento" do usuário; a do topo conta tempo. Arrastar reordena/troca a ativa, arrastar acima da lista conclui (com Desfazer), botão direito adiciona 5/10/15/30 min. Pode ser desativado nas Configurações (preferência por usuário no localStorage)
+14. **Configurações** — Aberta pelo usuário no topo do menu: perfil, timer on/off, recarregar a aplicação e sair da conta
 
 ---
 

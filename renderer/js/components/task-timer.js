@@ -24,13 +24,15 @@ import { getTasks, patchTask } from '../store.js';
 import { showToast, formatDuration, responsibleOf, todayISO } from '../utils.js';
 
 const TICK_MS        = 1000;
+const BEAT_SAVE_MS   = 10 * 1000;      // grava o batimento no localStorage a cada 10s (não a cada tick)
 const RESUME_GAP_MS  = 2 * 60 * 1000;  // reabriu em até 2 min (ex.: recarregar/atualizar) → continua
 const SLEEP_GAP_MS   = 5 * 60 * 1000;  // sem batimento por 5+ min com o app aberto → suspensão
 const FLUSH_WAIT_MS  = 3000;           // espera máxima pelas gravações ao fechar/sair
+const RELOAD_DEBOUNCE_MS = 250;        // junta várias gravações seguidas em uma só releitura
 const DRAG_START_PX  = 5;
-const DONE_ZONE_PX   = 24;             // quanto acima da lista o ponteiro precisa ir para concluir
 const ADD_MINUTES    = [5, 10, 15, 30];
 const STORAGE_PREFIX = 'artrock:timer:';
+const ENABLED_PREFIX = 'artrock:timer-enabled:';
 
 const toSec   = h => Math.round((h ?? 0) * 3600);
 const toHours = s => Math.round((s / 3600) * 1e6) / 1e6;
@@ -69,12 +71,15 @@ const known    = new Map();   // taskId → { sec, at } gravados/sincronizados n
 const inflight = new Set();
 const tickListeners = new Set();
 
-let tickHandle = null;
-let reloadSeq  = 0;
-let drag       = null;
-let staleDom   = false;       // dados mudaram durante um arraste → renderizar ao soltar
-let menu       = null;
-let bound      = false;
+let tickHandle   = null;
+let reloadTimer  = null;
+let reloadSeq    = 0;
+let lastBeatSave = 0;
+let drag         = null;
+let staleDom     = false;     // dados mudaram durante um arraste → renderizar ao soltar
+let menu         = null;
+let bound        = false;
+let savedHooks   = {};        // para reativar o timer pelas Configurações
 
 const panel    = () => document.getElementById('task-timer');
 const isActive = id => st.running && st.activeId === id;
@@ -342,7 +347,10 @@ async function reload() {
   else render();
 }
 
-const onTasksChanged = () => reload();
+function onTasksChanged() {
+  clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(reload, RELOAD_DEBOUNCE_MS);
+}
 
 // ── Batimento (1s) ────────────────────────────────────────
 
@@ -361,7 +369,10 @@ function tick() {
     }
     if (st.running) {
       st.lastBeat = now;
-      persist();
+      if (now - lastBeatSave >= BEAT_SAVE_MS) {
+        lastBeatSave = now;
+        persist();
+      }
     }
   }
 
@@ -381,13 +392,10 @@ function render() {
 
   const has = tasks.length > 0;
   root.innerHTML = `
-    <div class="tt-head">
-      <span class="tt-title">${icon('clock')} Em andamento</span>
-      <span class="tt-count">${tasks.length}</span>
-      <div class="tt-done-zone">${icon('check')} Solte para concluir</div>
-    </div>
+    <div class="tt-done-zone">${icon('check')} Solte para concluir</div>
 
-    <div class="tt-list" role="list">
+    <div class="tt-list" role="list"
+         title="Arraste para o topo para trocar a tarefa ativa, ou acima da lista para concluir. Botão direito: adicionar tempo.">
       ${has ? tasks.map((t, i) => `
         <div class="tt-item${i === 0 ? ' is-top' : ''}${isActive(t.id) ? ' is-running' : ''}"
              data-id="${t.id}" role="listitem" tabindex="0" title="${esc(t.name)}">
@@ -398,22 +406,27 @@ function render() {
       : '<div class="tt-empty">Nenhuma tarefa em andamento.</div>'}
     </div>
 
-    <div class="tt-controls">
-      <button type="button" class="tt-btn tt-btn-play${st.running ? ' is-running' : ''}" id="tt-toggle" ${has ? '' : 'disabled'}>
-        ${st.running ? `${icon('pause')} Pausar` : `${icon('play')} Iniciar`}
+    <div class="tt-foot">
+      <span class="tt-title">${icon('clock', 12)} Em andamento</span>
+      <span class="tt-count">${tasks.length}</span>
+      <button type="button" class="tt-btn tt-btn-play${st.running ? ' is-running' : ''}" id="tt-toggle"
+        ${has ? '' : 'disabled'} title="${st.running ? 'Pausar' : 'Iniciar'} o timer" aria-label="${st.running ? 'Pausar' : 'Iniciar'} o timer">
+        ${icon(st.running ? 'pause' : 'play')}
       </button>
-      <button type="button" class="tt-btn" id="tt-view" ${has ? '' : 'disabled'} title="Abrir os detalhes da tarefa ativa">
-        ${icon('eye')} Ver ativa
+      <button type="button" class="tt-btn" id="tt-view" ${has ? '' : 'disabled'}
+        title="Ver a tarefa ativa" aria-label="Ver a tarefa ativa">
+        ${icon('eye')}
       </button>
     </div>
-    ${tasks.length > 1 ? '<div class="tt-hint">Arraste para o topo para trocar a tarefa ativa, ou acima da lista para concluir.</div>' : ''}
   `;
 }
 
+// Único trabalho por segundo: trocar o texto do tempo da tarefa ativa.
 function updateTimes() {
   if (!st.running) return;
   const el = panel()?.querySelector(`[data-time="${st.activeId}"]`);
-  if (el) el.textContent = formatDuration(liveSec());
+  const text = formatDuration(liveSec());
+  if (el && el.textContent !== text) el.textContent = text;
 }
 
 // ── Arrastar (pointer events) ─────────────────────────────
@@ -441,7 +454,8 @@ function onPointerMove(e) {
     drag.item.classList.add('is-dragged');
     drag.rects   = drag.items.map(el => el.getBoundingClientRect());
     drag.slot    = drag.rects.length > 1 ? drag.rects[1].top - drag.rects[0].top : drag.rects[0].height;
-    drag.listTop = panel().querySelector('.tt-list').getBoundingClientRect().top;
+    // Concluir: ponteiro acima da borda de baixo da zona "Solte para concluir"
+    drag.doneLine = panel().querySelector('.tt-done-zone').getBoundingClientRect().bottom;
     closeMenu();
   }
 
@@ -450,7 +464,7 @@ function onPointerMove(e) {
 
   const r      = drag.rects[drag.from];
   const center = r.top + r.height / 2 + dy;
-  drag.toDone  = e.clientY < drag.listTop - DONE_ZONE_PX;
+  drag.toDone  = e.clientY < drag.doneLine;
 
   let to = 0;
   drag.rects.forEach((rc, i) => {
@@ -604,6 +618,9 @@ function bindPanel() {
 // quando o timer muda o status de uma tarefa ou o detalhe aberto por ele salva.
 export async function initTaskTimer(currentUser, hookFns = {}) {
   teardownTaskTimer();
+  savedHooks = hookFns;
+  if (!isTimerEnabled(currentUser.id)) return;   // desativado nas Configurações
+
   user  = currentUser;
   hooks = hookFns;
   load();
@@ -627,6 +644,7 @@ export async function initTaskTimer(currentUser, hookFns = {}) {
 
 export function teardownTaskTimer() {
   clearInterval(tickHandle);
+  clearTimeout(reloadTimer);
   tickHandle = null;
   window.removeEventListener('tasks-changed', onTasksChanged);
   closeMenu();
@@ -653,12 +671,30 @@ export async function flushTaskTimer() {
   await waitInflight();
 }
 
-// Sair da conta: pausa, grava e desliga o timer.
+// Sair da conta (ou desativar o timer): pausa, grava e desliga.
 export async function stopTaskTimer() {
   if (!user) return;
   pause();
   await waitInflight();
   teardownTaskTimer();
+}
+
+// Preferência por usuário, guardada neste computador (padrão: ativado).
+export function isTimerEnabled(userId) {
+  try {
+    return localStorage.getItem(`${ENABLED_PREFIX}${userId}`) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+export async function setTimerEnabled(currentUser, enabled) {
+  try {
+    localStorage.setItem(`${ENABLED_PREFIX}${currentUser.id}`, enabled ? '1' : '0');
+  } catch { /* sem storage: vale só nesta sessão */ }
+
+  if (enabled) await initTaskTimer(currentUser, savedHooks);
+  else await stopTaskTimer();
 }
 
 // Horas da tarefa segundo o timer: ao vivo (se ativa) ou o último valor que

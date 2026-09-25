@@ -209,18 +209,47 @@ ol {
   flex-shrink: 0;
 }
 
-/* Footer */
-.sidebar-footer {
-  margin-top: auto;
-  padding: 14px 12px;
-  border-top: 1px solid rgba(255, 255, 255, .07);
+/* Usuário logado — primeiro item do menu, abre Configurações */
+.nav-item.nav-user {
+  padding: 8px 10px;
 }
 
-.user-card {
+.nav-user-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: .7rem;
+}
+
+.nav-user-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  flex-direction: column;
+}
+
+.nav-user-info .user-name {
+  font-size: .82rem;
+}
+
+.nav-user-info .user-role {
+  font-size: .7rem;
+}
+
+.nav-user-gear {
+  width: 16px;
+  height: 16px;
+  opacity: .55;
+}
+
+.nav-user:hover .nav-user-gear,
+.nav-user.active .nav-user-gear {
+  opacity: 1;
+}
+
+.nav-divider {
+  height: 1px;
+  margin: 8px 4px;
+  background: rgba(255, 255, 255, .07);
 }
 
 .user-avatar {
@@ -237,9 +266,6 @@ ol {
   flex-shrink: 0;
 }
 
-.user-details {
-  overflow: hidden;
-}
 
 .user-name {
   display: block;
@@ -260,40 +286,9 @@ ol {
   text-overflow: ellipsis;
 }
 
-.user-switcher-label {
-  display: block;
-  font-size: .68rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: var(--gray-500);
-  margin-bottom: 5px;
-}
 
-.user-switcher {
-  width: 100%;
-  background: rgba(255, 255, 255, .07);
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: var(--r-sm);
-  padding: 7px 28px 7px 10px;
-  color: var(--gray-300);
-  font-size: .8rem;
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23888'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 18px;
-  transition: border-color var(--t);
-}
 
-.user-switcher:hover {
-  border-color: rgba(255, 255, 255, .22);
-}
 
-.user-switcher option {
-  background: #1a1a1a;
-}
 
 /* ============================================================
    MAIN WRAPPER
@@ -3299,27 +3294,6 @@ select.tc-input {
 .login-link:hover { color: var(--status-inprogress); }
 
 /* ── Botão Sair (sidebar) ────────────────────────────────── */
-.btn-logout {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  margin-top: 8px;
-  font-size: .8rem;
-  font-weight: 500;
-  color: var(--gray-400);
-  background: none;
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  transition: all var(--t);
-}
-.btn-logout:hover {
-  color: var(--white);
-  background: rgba(232,32,30,.15);
-  border-color: rgba(232,32,30,.3);
-}
 
 /* ============================================================
    TASK FILTER COMPONENT
@@ -3750,85 +3724,61 @@ select.tc-input {
 }
 
 /* ── Timer das tarefas em andamento (menu lateral) ───────── */
+/* Fica no rodapé do menu; o espaço livre acima recebe a zona "Concluir".
+   Sem animações contínuas: por segundo, só o texto do tempo muda. */
 .task-timer {
-  flex: 1 1 auto;
+  position: relative;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  margin: 4px 10px 12px;
-  padding: 12px 10px 10px;
+  margin: auto 10px 10px;
+  padding: 8px;
   border-radius: var(--r-md);
   background: rgba(255, 255, 255, .04);
   border: 1px solid rgba(255, 255, 255, .06);
   user-select: none;
 }
 
-.tt-head {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 4px 10px;
-}
-
-.tt-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: .7rem;
-  font-weight: 700;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: var(--gray-400);
-}
-
-.tt-count {
-  margin-left: auto;
-  font-size: .68rem;
-  font-weight: 700;
-  color: var(--gray-400);
-  background: rgba(255, 255, 255, .08);
-  border-radius: var(--r-full);
-  padding: 1px 8px;
-}
-
-/* Zona "Solte para concluir" — cobre o cabeçalho durante o arraste */
+/* Zona "Solte para concluir" — acima do painel, visível só durante o arraste */
 .tt-done-zone {
   position: absolute;
-  inset: -6px -4px 2px;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   border: 1.5px dashed rgba(22, 163, 74, .55);
-  border-radius: var(--r-sm);
-  background: rgba(22, 163, 74, .08);
+  border-radius: var(--r-md);
+  background: #1b2a20;   /* opaco: pode cobrir itens do menu durante o arraste */
   color: #4ade80;
-  font-size: .74rem;
+  font-size: .7rem;
   font-weight: 700;
-  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity var(--t), background var(--t), transform var(--t);
 }
 
 .task-timer.is-dragging .tt-done-zone {
-  opacity: 1;
+  visibility: visible;
 }
 
 .task-timer.is-over-done .tt-done-zone {
-  background: rgba(22, 163, 74, .28);
+  background: #1f5132;
   border-style: solid;
   color: #fff;
-  transform: scale(1.03);
 }
 
 .tt-list {
   flex: 1 1 auto;
   min-height: 0;
+  max-height: 40vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .task-timer.is-dragging .tt-list {
@@ -3838,16 +3788,16 @@ select.tc-input {
 .tt-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 5px 7px;
   border-radius: var(--r-sm);
   background: rgba(255, 255, 255, .05);
   border: 1px solid transparent;
   color: var(--gray-300);
-  font-size: .8rem;
+  font-size: .72rem;
   cursor: grab;
   touch-action: none;
-  transition: transform 160ms ease, background var(--t), border-color var(--t);
+  transition: transform 150ms ease;
 }
 
 .tt-item:hover {
@@ -3871,7 +3821,7 @@ select.tc-input {
   cursor: grabbing;
   transition: none;
   background: #2b2d31;
-  box-shadow: var(--sh-lg);
+  box-shadow: var(--sh-md);
 }
 
 .task-timer.is-over-done .tt-item.is-dragged {
@@ -3879,6 +3829,7 @@ select.tc-input {
   background: rgba(22, 163, 74, .35);
 }
 
+/* Conclusão: uma única animação curta (só transform/opacity) */
 .tt-item.is-completing {
   animation: ttComplete 420ms cubic-bezier(.5, 0, .75, 0) forwards;
   border-color: var(--status-done);
@@ -3893,8 +3844,8 @@ select.tc-input {
 }
 
 .tt-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--gray-600);
@@ -3906,14 +3857,6 @@ select.tc-input {
 
 .tt-item.is-running .tt-dot {
   background: var(--status-done);
-  box-shadow: 0 0 0 0 rgba(22, 163, 74, .6);
-  animation: ttPulse 1.6s ease-out infinite;
-}
-
-@keyframes ttPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, .6); }
-  70%  { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
 }
 
 .tt-name {
@@ -3926,7 +3869,7 @@ select.tc-input {
 
 .tt-time {
   flex-shrink: 0;
-  font-size: .76rem;
+  font-size: .68rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--gray-400);
@@ -3937,34 +3880,56 @@ select.tc-input {
 }
 
 .tt-empty {
-  padding: 10px 4px;
-  font-size: .78rem;
+  padding: 6px 4px;
+  font-size: .7rem;
   color: var(--gray-500);
   text-align: center;
 }
 
-.tt-controls {
+/* Rodapé: título + contagem + botões quadrados */
+.tt-foot {
   display: flex;
+  align-items: center;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.tt-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  white-space: nowrap;
+}
+
+.tt-count {
+  margin-right: auto;
+  font-size: .6rem;
+  font-weight: 700;
+  color: var(--gray-400);
+  background: rgba(255, 255, 255, .08);
+  border-radius: var(--r-full);
+  padding: 1px 6px;
 }
 
 .tt-btn {
-  flex: 1;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 7px 8px;
+  padding: 0;
   border: 1px solid rgba(255, 255, 255, .1);
   border-radius: var(--r-sm);
   background: rgba(255, 255, 255, .06);
   color: var(--gray-300);
-  font: inherit;
-  font-size: .76rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: all var(--t);
 }
 
 .tt-btn:hover:not(:disabled) {
@@ -3998,12 +3963,135 @@ select.tc-input {
   color: #fcd34d;
 }
 
-.tt-hint {
-  margin-top: 8px;
-  font-size: .68rem;
-  line-height: 1.4;
+/* ── Configurações ───────────────────────────────────────── */
+.set-wrap {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.set-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-xs);
+  padding: 18px 20px;
+}
+
+.set-card-title {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
   color: var(--gray-500);
-  text-align: center;
+  margin-bottom: 6px;
+}
+
+.set-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.set-avatar {
+  width: 52px;
+  height: 52px;
+  font-size: 1rem;
+}
+
+.set-profile-info {
+  min-width: 0;
+}
+
+.set-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--black);
+}
+
+.set-meta {
+  font-size: .82rem;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--gray-100);
+}
+
+.set-card-title + .set-row {
+  border-top: none;
+}
+
+label.set-row {
+  cursor: pointer;
+}
+
+.set-row-title {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--black);
+}
+
+.set-row-desc {
+  font-size: .8rem;
+  color: var(--gray-500);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+.set-row .btn {
+  flex-shrink: 0;
+}
+
+/* Interruptor (checkbox estilizado) */
+.set-switch {
+  appearance: none;
+  flex-shrink: 0;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: var(--r-full);
+  background: var(--gray-300);
+  cursor: pointer;
+  transition: background var(--t);
+}
+
+.set-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: var(--sh-xs);
+  transition: transform var(--t);
+}
+
+.set-switch:checked {
+  background: var(--status-done);
+}
+
+.set-switch:checked::after {
+  transform: translateX(18px);
+}
+
+.set-switch:focus-visible {
+  outline: 2px solid var(--status-inprogress);
+  outline-offset: 2px;
+}
+
+.set-switch:disabled {
+  opacity: .6;
+  cursor: wait;
 }
 
 /* Menu do botão direito */

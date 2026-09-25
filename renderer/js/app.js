@@ -6,10 +6,11 @@ import { initAdmin, renderAccessDenied } from './views/admin.js';
 import { initUsers } from './views/users.js';
 import { initDelegated } from './views/delegated.js';
 import { initBacklog } from './views/backlog.js';
+import { initSettings } from './views/settings.js';
 import { openCreateTask } from './views/modals.js';
-import { initTaskTimer, teardownTaskTimer, flushTaskTimer, stopTaskTimer } from './components/task-timer.js';
-import { getUsers, setCurrentUser, getCurrentUser, isAdmin, bust } from './store.js';
-import { onAuthChange, loginWithEmail, logout, resetPassword } from './auth.js';
+import { initTaskTimer, teardownTaskTimer, flushTaskTimer } from './components/task-timer.js';
+import { getCurrentUser, isAdmin, bust } from './store.js';
+import { onAuthChange, loginWithEmail, resetPassword } from './auth.js';
 import { showToast } from './utils.js';
 
 // ── Routes ────────────────────────────────────────────────
@@ -21,6 +22,7 @@ const ROUTES = {
   users:     { fn: initUsers,     title: 'Gerenciar Usuários', adminOnly: true },
   delegated: { fn: initDelegated, title: 'Tarefas Delegadas' },
   backlog:   { fn: initBacklog,   title: 'Backlog' },
+  settings:  { fn: initSettings,  title: 'Configurações' },
 };
 
 // Mostra o menu Administração apenas para o setor Admin e esconde
@@ -29,7 +31,8 @@ const ROUTES = {
 function applyAccessUI(admin, page) {
   document.getElementById('nav-admin').classList.toggle('hidden', !admin);
   document.getElementById('nav-users').classList.toggle('hidden', !admin);
-  document.getElementById('btn-new-task').classList.toggle('hidden', ['admin', 'users', 'delegated', 'backlog'].includes(page));
+  document.getElementById('btn-new-task').classList.toggle('hidden',
+    ['admin', 'users', 'delegated', 'backlog', 'settings'].includes(page));
 }
 
 async function navigate(raw) {
@@ -81,43 +84,15 @@ async function startTaskTimer() {
 // Ao fechar a janela, o main process espera o timer gravar (ver preload.js)
 window.appLifecycle?.onBeforeClose(() => flushTaskTimer());
 
-// ── User info + user-switcher (dev) ───────────────────────
+// ── Usuário no topo do menu (abre Configurações) ──────────
 
 async function initUserInfo() {
   const currentUser = await getCurrentUser();
   if (!currentUser) return;
 
-  const avatar   = document.getElementById('sidebar-avatar');
-  const username = document.getElementById('sidebar-username');
-  const role     = document.getElementById('sidebar-role');
-
-  function updateUI(u) {
-    avatar.textContent   = u.initials;
-    username.textContent = u.name;
-    role.textContent     = u.role;
-  }
-
-  updateUI(currentUser);
-
-  // User-switcher (apenas dev — o wrapper tem classe dev-only)
-  const sel = document.getElementById('user-switcher');
-  if (sel) {
-    const users = await getUsers();
-    sel.innerHTML = users.map(u =>
-      `<option value="${u.id}">${u.name}</option>`
-    ).join('');
-    sel.value = currentUser.id;
-
-    sel.addEventListener('change', async e => {
-      await stopTaskTimer();
-      await setCurrentUser(e.target.value);
-      bust(); // limpar cache para re-ler dados do novo usuário
-      const u = users.find(x => x.id === e.target.value);
-      if (u) updateUI(u);
-      navigate(currentPage());
-      startTaskTimer();
-    });
-  }
+  document.getElementById('sidebar-avatar').textContent   = currentUser.initials;
+  document.getElementById('sidebar-username').textContent = currentUser.name;
+  document.getElementById('sidebar-role').textContent     = currentUser.role;
 }
 
 // ── Login screen ──────────────────────────────────────────
@@ -198,13 +173,6 @@ async function boot() {
   // "Nova Tarefa" button
   document.getElementById('btn-new-task').addEventListener('click', () => {
     openCreateTask(() => navigate(currentPage()));
-  });
-
-  // Logout
-  document.getElementById('btn-logout').addEventListener('click', async () => {
-    await stopTaskTimer();   // pausa e grava o tempo antes de perder a sessão
-    await logout();
-    // onAuthChange cuida de esconder o app e mostrar login
   });
 
   // Hash-based routing

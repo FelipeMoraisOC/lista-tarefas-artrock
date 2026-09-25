@@ -10,21 +10,33 @@ import {
 } from 'firebase/firestore';
 import { responsibleOf } from './utils.js';
 
-let _cache = {};
+let _cache   = {};
+let _loading = {};   // leituras em andamento — chamadas simultâneas reaproveitam a mesma
+let _gen     = 0;    // invalidação: leitura iniciada antes de um bust() não entra no cache
 
 // ── Low-level ─────────────────────────────────────────────
 
 async function loadCollection(name) {
   if (_cache[name] !== undefined) return _cache[name];
-  const snap = await getDocs(collection(db, name));
-  const data = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-  _cache[name] = data;
-  return data;
+  if (_loading[name]) return _loading[name];
+
+  const gen = _gen;
+  const p = getDocs(collection(db, name))
+    .then(snap => {
+      const data = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      if (gen === _gen) _cache[name] = data;
+      return data;
+    })
+    .finally(() => { if (_loading[name] === p) delete _loading[name]; });
+
+  _loading[name] = p;
+  return p;
 }
 
 export function bust(key) {
-  if (key) delete _cache[key];
-  else _cache = {};
+  _gen++;
+  if (key) { delete _cache[key]; delete _loading[key]; }
+  else { _cache = {}; _loading = {}; }
 }
 
 // ── Reference data ────────────────────────────────────────
@@ -47,17 +59,6 @@ export async function getCurrentUser() {
   const user = { ...snap.data(), id: snap.id };
   _cache._currentUser = user;
   return user;
-}
-
-// Mantido para o user-switcher de dev/teste.
-// Em produção o user-switcher fica oculto e esta função não é chamada.
-export async function setCurrentUser(id) {
-  // Buscar o usuário pelo ID (que agora é o UID do Firebase Auth)
-  const users = await getUsers();
-  const user = users.find(u => u.id === id);
-  if (user) {
-    _cache._currentUser = user;
-  }
 }
 
 // ── Filtered getters ──────────────────────────────────────
