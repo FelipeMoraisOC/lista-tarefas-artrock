@@ -3503,6 +3503,251 @@ select.tc-input {
   gap: 4px;
 }
 
+/* ── Backlog ─────────────────────────────────────────────── */
+.bl-section {
+  margin-bottom: 22px;
+}
+
+.bl-section-title {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gray-500);
+  margin-bottom: 10px;
+}
+
+.bl-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bl-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--white);
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-xs);
+  font: inherit;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all var(--t);
+}
+
+.bl-card:hover {
+  border-color: var(--status-inprogress);
+  box-shadow: var(--sh-sm);
+}
+
+.bl-card.active {
+  border-color: var(--status-inprogress);
+  background: rgba(37, 99, 235, .06);
+  color: var(--status-inprogress);
+}
+
+.bl-card-name {
+  font-size: .86rem;
+  font-weight: 600;
+}
+
+.bl-card-type {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 150px;
+}
+
+.bl-card-count {
+  font-size: .74rem;
+  color: var(--gray-500);
+}
+
+.bl-card.active .bl-card-count {
+  color: var(--status-inprogress);
+}
+
+.bl-card.is-empty:not(.active) {
+  opacity: .6;
+}
+
+.bl-empty {
+  font-size: .84rem;
+  color: var(--gray-500);
+  padding: 12px 0;
+  text-align: center;
+}
+
+.bl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.bl-search {
+  flex: 0 1 280px;
+}
+
+.bl-toolbar-count {
+  margin-left: auto;
+  font-size: .84rem;
+  color: var(--gray-600);
+}
+
+.bl-toolbar-count strong {
+  color: var(--black);
+}
+
+.bl-toolbar .btn-primary {
+  white-space: nowrap;
+}
+
+.bl-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--r-md);
+}
+
+.bl-table td {
+  padding: 9px 14px;
+  white-space: nowrap;
+}
+
+.bl-table th {
+  padding: 10px 14px;
+}
+
+.bl-row {
+  cursor: pointer;
+}
+
+.bl-row:focus-visible td {
+  background: var(--gray-50);
+  outline: none;
+}
+
+.bl-row.is-done .bl-task-name {
+  color: var(--gray-500);
+  text-decoration: line-through;
+}
+
+.bl-row-sub td {
+  background: var(--gray-50);
+}
+
+.bl-col-task {
+  min-width: 260px;
+  white-space: normal !important;
+}
+
+.bl-task-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bl-row-sub .bl-task-cell {
+  padding-left: 26px;
+}
+
+.bl-task-name {
+  font-weight: 600;
+  color: var(--black);
+}
+
+.bl-expand,
+.bl-expand-spacer {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.bl-expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: transform var(--t), background var(--t);
+}
+
+.bl-expand:hover {
+  background: var(--gray-100);
+}
+
+.bl-expand.open {
+  transform: rotate(90deg);
+}
+
+.bl-sub-mark {
+  color: var(--gray-400);
+}
+
+.bl-sub-count {
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  background: var(--gray-100);
+  border-radius: var(--r-full);
+  padding: 1px 7px;
+}
+
+.bl-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+}
+
+.bl-person-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bl-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: .6rem;
+}
+
+.bl-person-none .bl-person-name {
+  color: var(--gray-500);
+  font-style: italic;
+}
+
+.tc-avatar-none {
+  background: var(--white);
+  color: var(--gray-400);
+  border: 1.5px dashed var(--gray-300);
+}
+
+.bl-col-date.overdue {
+  color: var(--priority-high);
+  font-weight: 600;
+}
+
+/* Detalhe da tarefa em modo visualização */
+.tc-readonly .tc-edit-only {
+  display: none !important;
+}
+
+.tc-readonly .tc-title-view {
+  cursor: default;
+}
+
+.tc-readonly-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ── Dev-only (visível apenas com --dev) ─────────────────── */
 .dev-only { display: none; }
 body.dev-mode .dev-only { display: block; }

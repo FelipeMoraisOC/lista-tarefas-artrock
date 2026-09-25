@@ -1,7 +1,7 @@
 // ── Minhas Tarefas view ───────────────────────────────────
 
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
-import { formatDate } from '../utils.js';
+import { formatDate, responsibleOf } from '../utils.js';
 import { renderTaskCards } from '../components/task-card.js';
 
 export async function initTasks(container) {
@@ -15,7 +15,7 @@ export async function initTasks(container) {
   ]);
 
   // Tasks the current user is responsible for (fallback to createdById for legacy tasks)
-  let mine = allTasks.filter(t => t.type === 'task' && (t.responsibleId ?? t.createdById) === currentUser.id);
+  let mine = allTasks.filter(t => t.type === 'task' && responsibleOf(t) === currentUser.id);
 
   function counts() {
     return {
@@ -106,7 +106,7 @@ export async function initTasks(container) {
         openTaskDetail(t, async () => {
           // Refresh mine list
           const ft = await getTasks();
-          mine = ft.filter(x => x.type === 'task' && (x.responsibleId ?? x.createdById) === currentUser.id);
+          mine = ft.filter(x => x.type === 'task' && responsibleOf(x) === currentUser.id);
           renderGrid();
         });
       },

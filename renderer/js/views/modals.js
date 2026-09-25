@@ -1,13 +1,14 @@
 // ── Modals: Create Task & Task Detail ────────────────────
 
 import {
-  getTasks, getUsers, getCategories, getActivityTypes,
+  getTasks, getUsers, getCategories, getActivityTypes, getSectors,
   getActivityTypesForUser, getCurrentUser, createTask, updateTask, deleteTask,
+  isManager, canEditTask,
 } from '../store.js';
 import { renderMd } from '../components/markdown.js';
 import { initEditor, destroyAllEditors } from '../components/editor.js';
 import { createSearchableSelect } from '../components/searchable-select.js';
-import { showToast, formatDatetime, todayISO, generateId } from '../utils.js';
+import { showToast, formatDatetime, todayISO, generateId, responsibleOf } from '../utils.js';
 
 // ── Modal shell helpers ───────────────────────────────────
 
@@ -107,7 +108,7 @@ function setErr(inputId, hasError) {
   (el.closest('.tc-field') ?? el.parentElement)?.classList.toggle('has-error', hasError);
 }
 
-function openResponsiblePicker(users, currentId) {
+function openResponsiblePicker(users, currentId, { allowNone = false } = {}) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'tc-resp-modal';
@@ -119,7 +120,18 @@ function openResponsiblePicker(users, currentId) {
         ? users.filter(u => u.name.toLowerCase().includes(term))
         : users;
 
-      const listHtml = filtered.length
+      // Opção "Sem responsável" — usada no Backlog para atribuir depois
+      const noneHtml = allowNone && !term ? `
+            <div class="tc-resp-user${!selectedId ? ' selected' : ''}" data-id="">
+              <span class="tc-avatar tc-avatar-none">?</span>
+              <div class="tc-resp-user-info">
+                <div class="tc-resp-user-name">Sem responsável</div>
+                <div class="tc-resp-user-role">Atribuir depois</div>
+              </div>
+              ${!selectedId ? `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:#6ea8ff;flex-shrink:0"><path d="${ICONS.check}"/></svg>` : ''}
+            </div>` : '';
+
+      const listHtml = noneHtml + (filtered.length
         ? filtered.map(u => `
             <div class="tc-resp-user${u.id === selectedId ? ' selected' : ''}" data-id="${u.id}">
               <span class="tc-avatar">${esc(initials(u))}</span>
@@ -129,7 +141,7 @@ function openResponsiblePicker(users, currentId) {
               </div>
               ${u.id === selectedId ? `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:#6ea8ff;flex-shrink:0"><path d="${ICONS.check}"/></svg>` : ''}
             </div>`).join('')
-        : `<div class="tc-resp-empty">Nenhum usuário encontrado</div>`;
+        : `<div class="tc-resp-empty">Nenhum usuário encontrado</div>`);
 
       overlay.innerHTML = `
         <div class="tc-resp-backdrop"></div>
@@ -186,40 +198,71 @@ function openResponsiblePicker(users, currentId) {
 // CREATE TASK MODAL
 // ═══════════════════════════════════════════════════════════
 
-export async function openCreateTask(onSave, parentId = null, parentData = null) {
-  const [currentUser, users, categories] = await Promise.all([
-    getCurrentUser(), getUsers(), getCategories(),
+// Modo Backlog (`opts.backlog`): escolhe primeiro o setor, que filtra tipo e
+// categoria; a tarefa pode ser criada sem responsável.
+// `opts.sectorId` / `opts.activityTypeId` pré-selecionam os campos.
+export async function openCreateTask(onSave, parentId = null, parentData = null, opts = {}) {
+  const [currentUser, users, categories, activityTypes, sectors] = await Promise.all([
+    getCurrentUser(), getUsers(), getCategories(), getActivityTypes(), getSectors(),
   ]);
 
-  const myAT = await getActivityTypesForUser(currentUser);
-  const isSub = !!parentId;
+  const backlog = !!opts.backlog;
+  const isSub   = !!parentId;
+  const myAT    = backlog ? [] : await getActivityTypesForUser(currentUser);
 
-  const preAtId  = parentData?.activityTypeId ?? '';
+  let sectorId   = parentData?.sectorId ?? opts.sectorId ?? '';
+  const preAtId  = parentData?.activityTypeId ?? opts.activityTypeId ?? '';
   const preCatId = parentData?.categoryId ?? '';
+
+  const inSector = (ids, sid) => ids.includes('ALL') || ids.includes(sid);
+
+  function typesFor(sid) {
+    if (!backlog) return myAT;
+    return sid ? activityTypes.filter(a => inSector(a.sectorIds, sid)) : [];
+  }
 
   function catsFor(atId) {
     if (!atId) return [];
     return categories.filter(c =>
-      c.activityTypeId === atId && (
-        c.sectorIds.includes('ALL') ||
-        c.sectorIds.some(s => currentUser.sectorIds.includes(s))
-      )
+      c.activityTypeId === atId && (backlog
+        ? inSector(c.sectorIds, sectorId)
+        : c.sectorIds.includes('ALL') || c.sectorIds.some(s => currentUser.sectorIds.includes(s)))
     );
   }
+
+  // Responsáveis possíveis: no Backlog, apenas usuários do setor escolhido
+  const usersFor = sid => backlog && sid ? users.filter(u => inSector(u.sectorIds ?? [], sid)) : users;
+
+  const typeOptions = (sid, selId) => backlog && !sid
+    ? '<option value="">Selecione o setor primeiro...</option>'
+    : `<option value="">Tipo de atividade...</option>
+       ${typesFor(sid).map(a => `<option value="${a.id}" ${a.id === selId ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}`;
+
+  const presetAt = typesFor(sectorId).some(a => a.id === preAtId) || isSub ? preAtId : '';
 
   openShell(`
     <div class="tc-topbar">
       <div class="tc-topbar-left">
+        ${backlog ? `
+        <span class="tc-field">
+          <select class="tc-pill-select" id="fc-sector" ${isSub ? 'disabled' : ''} title="Setor">
+            <option value="">Setor...</option>
+            ${sectors.filter(s => s.id !== 'ALL').map(s => `<option value="${s.id}" ${s.id === sectorId ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
+          </select>
+        </span>` : ''}
         <span class="tc-field">
           <select class="tc-pill-select" id="fc-at" ${isSub ? 'disabled' : ''} title="Tipo de Atividade">
-            <option value="">Tipo de atividade...</option>
-            ${myAT.map(a => `<option value="${a.id}" ${a.id === preAtId ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
+            ${isSub
+              ? `<option value="${preAtId}">${esc(activityTypes.find(a => a.id === preAtId)?.name ?? 'Tipo de atividade')}</option>`
+              : typeOptions(sectorId, presetAt)}
           </select>
         </span>
         <span class="tc-field">
           <select class="tc-pill-select" id="fc-cat" ${isSub ? 'disabled' : ''} title="Categoria">
-            <option value="">${preAtId ? 'Categoria...' : 'Selecione o tipo primeiro...'}</option>
-            ${catsFor(preAtId).map(c => `<option value="${c.id}" ${c.id === preCatId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+            ${isSub
+              ? `<option value="${preCatId}">${esc(categories.find(c => c.id === preCatId)?.name ?? 'Categoria')}</option>`
+              : `<option value="">${presetAt ? 'Categoria...' : 'Selecione o tipo primeiro...'}</option>
+                 ${catsFor(presetAt).map(c => `<option value="${c.id}" ${c.id === preCatId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}`}
           </select>
         </span>
       </div>
@@ -304,7 +347,7 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
 
     <div class="tc-footer">
       <div class="tc-footer-left">
-        <button class="tc-btn tc-btn-blue" id="mc-pick-resp">${icon('plus', 15)} Responsável</button>
+        <button class="tc-btn tc-btn-blue" id="mc-pick-resp">${icon('plus', 15)} ${backlog ? 'Sem responsável' : 'Responsável'}</button>
       </div>
       <button class="tc-btn" id="mc-cancel">Cancelar</button>
       <button class="tc-btn tc-btn-primary" id="mc-save">${icon('save', 15)} ${isSub ? 'Criar Sub-tarefa' : 'Criar Tarefa'}</button>
@@ -321,13 +364,14 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
 
   let chosenResponsibleId = null;
   const respBtn = $('mc-pick-resp');
+  function setResponsible(id) {
+    chosenResponsibleId = id || null;
+    const u = users.find(x => x.id === chosenResponsibleId);
+    respBtn.innerHTML = `${icon('plus', 15)} ${u ? esc(u.name) : backlog ? 'Sem responsável' : 'Responsável'}`;
+  }
   respBtn.addEventListener('click', async () => {
-    const picked = await openResponsiblePicker(users, chosenResponsibleId);
-    if (picked !== null) {
-      chosenResponsibleId = picked;
-      const u = users.find(x => x.id === picked);
-      respBtn.innerHTML = `${icon('plus', 15)} ${u ? esc(u.name) : 'Responsável'}`;
-    }
+    const picked = await openResponsiblePicker(usersFor(sectorId), chosenResponsibleId, { allowNone: backlog });
+    if (picked !== null) setResponsible(picked);
   });
 
   // Initialize EasyMDE rich editor for description
@@ -335,6 +379,17 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
     placeholder: 'Adicione uma descrição mais detalhada...',
     minHeight: 120,
   });
+
+  // Setor → tipos de atividade (apenas Backlog)
+  if (backlog && !isSub) {
+    $('fc-sector').addEventListener('change', e => {
+      sectorId = e.target.value;
+      $('fc-at').innerHTML  = typeOptions(sectorId, '');
+      $('fc-cat').innerHTML = '<option value="">Selecione o tipo primeiro...</option>';
+      // Responsável escolhido precisa pertencer ao novo setor
+      if (chosenResponsibleId && !usersFor(sectorId).some(u => u.id === chosenResponsibleId)) setResponsible(null);
+    });
+  }
 
   // Activity type → populate categories
   if (!isSub) {
@@ -378,6 +433,9 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
 
     const atId  = isSub ? preAtId  : $('fc-at').value;
     const catId = isSub ? preCatId : $('fc-cat').value;
+    if (backlog && !isSub) {
+      setErr('fc-sector', !sectorId); if (!sectorId) ok = false;
+    }
     if (!isSub) {
       setErr('fc-at',  !atId);  if (!atId)  ok = false;
       setErr('fc-cat', !catId); if (!catId) ok = false;
@@ -427,7 +485,8 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
         checklist: [],
         comments:  [],
         createdById: currentUser.id,
-        responsibleId: chosenResponsibleId || currentUser.id,
+        responsibleId: backlog ? chosenResponsibleId : (chosenResponsibleId || currentUser.id),
+        ...(sectorId ? { sectorId } : {}),
       });
       closeModal();
       showToast(isSub ? 'Sub-tarefa criada!' : 'Tarefa criada!', 'success');
@@ -444,12 +503,16 @@ export async function openCreateTask(onSave, parentId = null, parentData = null)
 // ═══════════════════════════════════════════════════════════
 
 export async function openTaskDetail(task, onSave) {
-  const [allTasks, users, categories, activityTypes, currentUser] = await Promise.all([
-    getTasks(), getUsers(), getCategories(), getActivityTypes(), getCurrentUser(),
+  const [allTasks, users, categories, activityTypes, sectors, currentUser] = await Promise.all([
+    getTasks(), getUsers(), getCategories(), getActivityTypes(), getSectors(), getCurrentUser(),
   ]);
 
   const subtasks = allTasks.filter(t => t.parentId === task.id);
   const isSub    = task.type === 'subtask';
+  const parent   = isSub ? allTasks.find(t => t.id === task.parentId) : null;
+
+  // Somente responsável, criador ou Admin/Gestão editam; os demais só visualizam.
+  const readOnly = !canEditTask(task, currentUser, await isManager(currentUser), parent);
 
   // Working copy
   const localDescription = getDescriptionDraft(task.id);
@@ -462,23 +525,22 @@ export async function openTaskDetail(task, onSave) {
   let showActivity = true;
 
   function markDirty() {
+    if (readOnly) return;
     const btn = document.getElementById('dd-save');
     if (btn) btn.style.display = 'inline-flex';
   }
 
+  // Tarefas do Backlog usam os setores da própria tarefa; as demais, os do usuário.
+  const scopeSectors = task.sectorId ? [task.sectorId] : currentUser.sectorIds;
+  const inScope = ids => ids.includes('ALL') || ids.some(s => scopeSectors.includes(s));
+
   function myAT() {
-    return activityTypes.filter(a =>
-      a.sectorIds.includes('ALL') ||
-      a.sectorIds.some(s => currentUser.sectorIds.includes(s))
-    );
+    return activityTypes.filter(a => inScope(a.sectorIds) || a.id === task.activityTypeId);
   }
 
   function catsFor(atId) {
     return categories.filter(c =>
-      c.activityTypeId === atId && (
-        c.sectorIds.includes('ALL') ||
-        c.sectorIds.some(s => currentUser.sectorIds.includes(s))
-      )
+      c.activityTypeId === atId && (inScope(c.sectorIds) || c.id === task.categoryId)
     );
   }
 
@@ -515,6 +577,8 @@ export async function openTaskDetail(task, onSave) {
     <div class="tc-body">
       <!-- ── Main ── -->
       <div class="tc-main">
+        ${readOnly ? `
+          <div class="tc-note tc-readonly-note">${icon('info', 15)} Modo visualização — apenas o responsável, quem criou a tarefa ou os setores Admin e Gestão podem editar ou excluir.</div>` : ''}
         ${isSub ? `
           <div class="tc-note">↳ Sub-tarefa de: <strong>${esc(allTasks.find(t => t.id === W.parentId)?.name ?? W.parentId)}</strong></div>` : ''}
 
@@ -552,14 +616,14 @@ export async function openTaskDetail(task, onSave) {
           </div>
         </div>
 
-        <div class="tc-actions">
+        <div class="tc-actions tc-edit-only">
           ${!isSub ? `<button class="tc-btn" id="dd-add-sub">${icon('plus', 15)} Sub-tarefa</button>` : ''}
           <button class="tc-btn" id="dd-add-check">${icon('list', 15)} Checklist</button>
         </div>
 
         <!-- Description -->
         <div class="tc-section">
-          ${sectionHead('desc', 'Descrição', `<button class="tc-btn tc-btn-sm" id="dd-desc-toggle">Editar</button>`)}
+          ${sectionHead('desc', 'Descrição', `<button class="tc-btn tc-btn-sm tc-edit-only" id="dd-desc-toggle">Editar</button>`)}
           <div class="tc-section-body">
             <div id="dd-desc-view" class="markdown-body tc-md">${W.description ? renderMd(W.description) : descPlaceholder}</div>
             <div id="dd-desc-edit" style="display:none">
@@ -578,7 +642,7 @@ export async function openTaskDetail(task, onSave) {
           <div class="tc-section-body">
             <div class="tc-progress"><span class="tc-progress-pct" id="dd-check-pct">0%</span><div class="tc-progress-bar"><div id="dd-check-bar"></div></div></div>
             <div id="dd-check-list" class="tc-check-list"></div>
-            <div class="tc-check-add">
+            <div class="tc-check-add tc-edit-only">
               <input type="text" class="tc-input" id="dd-check-input" placeholder="Adicionar um item..." />
               <button class="tc-btn tc-btn-sm" id="dd-check-add-btn">Adicionar</button>
             </div>
@@ -623,7 +687,7 @@ export async function openTaskDetail(task, onSave) {
           </div>
         </div>
         <!-- Actions -->
-        <div class="tc-section">
+        <div class="tc-section tc-edit-only">
               ${sectionHead('warn', 'Ações')}
               <div class="tc-section-body">
                 <div id="dd-delete-action">
@@ -645,6 +709,11 @@ export async function openTaskDetail(task, onSave) {
       <!-- ── Comments & activity ── -->
       <aside class="tc-side">
         <div class="tc-side-info">
+          ${W.sectorId ? `
+          <div class="tc-side-field">
+            <div class="tc-side-field-label">Setor</div>
+            <div class="tc-side-field-value">${esc(sectors.find(s => s.id === W.sectorId)?.name ?? '—')}</div>
+          </div>` : ''}
           <div class="tc-side-field">
             <div class="tc-side-field-label">Criado por</div>
             <div class="tc-side-field-value">
@@ -662,7 +731,7 @@ export async function openTaskDetail(task, onSave) {
           <span class="tc-side-title">Comentários e atividade</span>
           <button class="tc-btn tc-btn-sm" id="dd-activity-toggle">Ocultar Detalhes</button>
         </div>
-        <div class="tc-comment-box">
+        <div class="tc-comment-box tc-edit-only">
           <textarea class="tc-comment-input" id="dd-comment" rows="1" placeholder="Escrever um comentário..."></textarea>
           <div class="tc-comment-actions" id="dd-comment-actions">
             <button class="tc-btn tc-btn-primary tc-btn-sm" id="dd-comment-save">Salvar</button>
@@ -677,6 +746,7 @@ export async function openTaskDetail(task, onSave) {
   const $ = id => document.getElementById(id);
   const root = $('_modal');
   root.classList.toggle('tc-is-done', W.status === 'Concluído');
+  root.classList.toggle('tc-readonly', readOnly);
   if (localDescription !== null) markDirty();
 
   // ════════════════════════════════════════════════
@@ -690,20 +760,23 @@ export async function openTaskDetail(task, onSave) {
 
   // ── Responsible user dropdown ──
   const respSelect = createSearchableSelect({
-    options: users.map(u => ({ value: u.id, label: u.name })),
-    value: W.responsibleId || W.createdById || '',
-    placeholder: 'Escolher responsável...',
+    options: [
+      { value: '', label: 'Sem responsável' },
+      ...users.map(u => ({ value: u.id, label: u.name })),
+    ],
+    value: responsibleOf(W) ?? '',
+    placeholder: 'Sem responsável',
     searchPlaceholder: 'Filtrar por nome...',
     onChange: (val) => {
-      const oldId = W.responsibleId || W.createdById;
+      const oldId = responsibleOf(W) ?? '';
       if (val === oldId) return;
       const oldUser = users.find(u => u.id === oldId);
       const newUser = users.find(u => u.id === val);
-      W.responsibleId = val;
+      W.responsibleId = val || null;
       const comment = {
         id: generateId('cmt'),
         userId: currentUser.id,
-        text: `alterou o responsável de ${oldUser?.name ?? '—'} para ${newUser?.name ?? '—'}`,
+        text: `alterou o responsável de ${oldUser?.name ?? 'Sem responsável'} para ${newUser?.name ?? 'Sem responsável'}`,
         createdAt: new Date().toISOString(),
         isSystem: true,
       };
@@ -719,6 +792,7 @@ export async function openTaskDetail(task, onSave) {
   const nameView  = $('dd-name-view');
   const nameInput = $('dd-name-input');
   nameView.addEventListener('click', () => {
+    if (readOnly) return;
     nameView.style.display = 'none';
     nameInput.style.display = 'block';
     nameInput.focus(); nameInput.select();
@@ -764,7 +838,7 @@ export async function openTaskDetail(task, onSave) {
     }
   }
   descBtn.addEventListener('click', openDescEditor);
-  descView.addEventListener('click', e => { if (!e.target.closest('a')) openDescEditor(); });
+  descView.addEventListener('click', e => { if (!readOnly && !e.target.closest('a')) openDescEditor(); });
 
   $('dd-desc-close').addEventListener('click', () => {
     descView.innerHTML = W.description ? renderMd(W.description) : descPlaceholder;
@@ -843,7 +917,7 @@ export async function openTaskDetail(task, onSave) {
       <label class="tc-check-item ${i.done ? 'done' : ''}" data-id="${i.id}">
         <input type="checkbox" ${i.done ? 'checked' : ''} />
         <span class="tc-check-text">${esc(i.text)}</span>
-        <button class="tc-icon-btn tc-check-del" title="Remover">✕</button>
+        <button class="tc-icon-btn tc-check-del tc-edit-only" title="Remover">✕</button>
       </label>`).join('');
   }
 
@@ -1029,6 +1103,12 @@ export async function openTaskDetail(task, onSave) {
     }
   });
 
+  // ── Modo visualização: bloqueia todos os campos ──
+  if (readOnly) {
+    root.querySelectorAll('.tc-topbar-left select, .tc-main input, .tc-main select, .tc-main textarea, #dd-check, #dd-resp-container button')
+      .forEach(el => { el.disabled = true; });
+  }
+
   // ── Add subtask ──
   $('dd-add-sub')?.addEventListener('click', () => {
     closeModal();
@@ -1037,7 +1117,7 @@ export async function openTaskDetail(task, onSave) {
       const t = fresh.find(x => x.id === task.id);
       if (t) openTaskDetail(t, onSave);
       if (onSave) await onSave();
-    }, W.id, { activityTypeId: W.activityTypeId, categoryId: W.categoryId });
+    }, W.id, { activityTypeId: W.activityTypeId, categoryId: W.categoryId, sectorId: W.sectorId });
   });
 
   // ── Subtask click ──

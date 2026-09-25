@@ -33,6 +33,13 @@ export function formatDatetime(iso) {
   });
 }
 
+// Responsável efetivo da tarefa. Tarefas antigas sem o campo caem no criador;
+// tarefas do Backlog podem ficar sem responsável (responsibleId === null).
+export function responsibleOf(task) {
+  if (!task) return null;
+  return 'responsibleId' in task ? task.responsibleId : task.createdById;
+}
+
 export function isOverdue(deadline, status) {
   if (!deadline || status === 'Concluído') return false;
   return deadline < new Date().toISOString().split('T')[0];

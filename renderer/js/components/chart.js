@@ -1,5 +1,7 @@
 // ── Chart.js wrappers ─────────────────────────────────────
 
+import { responsibleOf } from '../utils.js';
+
 const CAT_COLORS = {
   c1: '#E8201E',
   c2: '#FF6B6B',
@@ -25,7 +27,7 @@ export function renderPie(canvas, tasks, categories, userId) {
 
   const map = {};
   tasks.forEach(t => {
-    if (t.hoursInvested && (t.responsibleId ?? t.createdById) === userId)
+    if (t.hoursInvested && responsibleOf(t) === userId)
       map[t.categoryId] = (map[t.categoryId] ?? 0) + t.hoursInvested;
   });
 
@@ -81,7 +83,7 @@ export function renderBar(canvas, tasks, categories, userId) {
   }
 
   const catIds = [...new Set(
-    tasks.filter(t => t.hoursInvested && (t.responsibleId ?? t.createdById) === userId).map(t => t.categoryId)
+    tasks.filter(t => t.hoursInvested && responsibleOf(t) === userId).map(t => t.categoryId)
   )];
 
   const datasets = catIds.map((cid, idx) => {
@@ -89,7 +91,7 @@ export function renderBar(canvas, tasks, categories, userId) {
     return {
       label: cat?.name ?? cid,
       data: dateKeys.map(dk =>
-        tasks.filter(t => t.categoryId === cid && t.endDate === dk && t.hoursInvested && (t.responsibleId ?? t.createdById) === userId)
+        tasks.filter(t => t.categoryId === cid && t.endDate === dk && t.hoursInvested && responsibleOf(t) === userId)
              .reduce((s, t) => s + (t.hoursInvested ?? 0), 0)
       ),
       backgroundColor: col(cid, idx),

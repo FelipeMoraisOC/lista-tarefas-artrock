@@ -2,9 +2,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function userSectors() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sectorIds;
+    }
+
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid))
-             .data.sectorIds.hasAny(['s4']);
+      return userSectors().hasAny(['s4']);
+    }
+
+    // Setores com acesso total às tarefas: Admin (s4) e Gestão (s5).
+    function isManager() {
+      return userSectors().hasAny(['s4', 's5']);
+    }
+
+    // Criador, responsável ou Admin/Gestão.
+    // Tarefas antigas sem responsibleId têm o criador como responsável.
+    function canManageTask(task) {
+      return task.createdById == request.auth.uid
+          || task.get('responsibleId', null) == request.auth.uid
+          || isManager();
     }
 
     match /sectors/{id} {
@@ -31,8 +47,12 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.resource.data.createdById == request.auth.uid;
-      allow update, delete: if request.auth != null
-                            && resource.data.createdById == request.auth.uid;
+      // Sub-tarefas também podem ser alteradas por quem gerencia a tarefa pai.
+      allow update, delete: if request.auth != null && (
+        canManageTask(resource.data) ||
+        (resource.data.get('parentId', null) != null &&
+         canManageTask(get(/databases/$(database)/documents/tasks/$(resource.data.parentId)).data))
+      );
     }
   }
 }

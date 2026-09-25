@@ -3,13 +3,14 @@
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
 import { renderPie, renderBar } from '../components/chart.js';
 import { renderTaskCards } from '../components/task-card.js';
+import { responsibleOf } from '../utils.js';
 
 export async function initDashboard(container) {
   const [tasks, users, categories, activityTypes, currentUser] = await Promise.all([
     getTasks(), getUsers(), getCategories(), getActivityTypes(), getCurrentUser(),
   ]);
 
-  const mine = tasks.filter(t => t.type === 'task' && (t.responsibleId ?? t.createdById) === currentUser.id);
+  const mine = tasks.filter(t => t.type === 'task' && responsibleOf(t) === currentUser.id);
 
   const inProgress = mine.filter(t => t.status === 'Em Andamento');
   const upcoming   = mine.filter(t => t.status === 'Para Fazer')

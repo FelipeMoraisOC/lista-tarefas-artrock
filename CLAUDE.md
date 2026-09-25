@@ -99,10 +99,13 @@ comments [{id, userId, text, createdAt, isSystem?}]
 | s2 | Backoffice Digital |
 | s3 | Vendas |
 | s4 | Admin |
+| s5 | Gestão |
 
 ### Controle de Acesso
 
-- `isAdmin(user)`: verifica se `sectorIds` contém o setor com nome "admin" (case-insensitive)
+- `isAdmin(user)`: verifica se `sectorIds` contém `s4` (Admin)
+- `isManager(user)`: verifica se `sectorIds` contém `s4` (Admin) ou `s5` (Gestão) — acesso total às tarefas
+- Os IDs `s4`/`s5` são fixos em `store.js` **e** em `firestore.rules` — manter os dois em sincronia
 - Rotas `admin` e `users`: restritas a admins (verificado em `navigate()` no app.js)
 - Tipos de atividade e categorias filtrados pelos setores do usuário logado
 

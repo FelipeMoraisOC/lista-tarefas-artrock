@@ -8,6 +8,7 @@ import {
   collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc,
   query, where, writeBatch,
 } from 'firebase/firestore';
+import { responsibleOf } from './utils.js';
 
 let _cache = {};
 
@@ -157,19 +158,43 @@ export async function updateUser(uid, updates) {
   return { ...snap.data(), ...merged, id: uid };
 }
 
-// ── Admin access (setor "Admin") ──────────────────────────
+// ── Controle de acesso por setor ──────────────────────────
+// IDs fixos, iguais aos usados em firestore.rules — manter os dois em sincronia.
 
-const ADMIN_SECTOR_NAME = 'admin';
-
-export async function getAdminSector() {
-  const sectors = await getSectors();
-  return sectors.find(s => (s.name ?? '').trim().toLowerCase() === ADMIN_SECTOR_NAME) ?? null;
-}
+const ADMIN_SECTOR_ID    = 's4';
+const MANAGER_SECTOR_IDS = [ADMIN_SECTOR_ID, 's5'];   // Admin e Gestão
 
 export async function isAdmin(user) {
-  if (!user?.sectorIds) return false;
-  const admin = await getAdminSector();
-  return !!admin && user.sectorIds.includes(admin.id);
+  return !!user?.sectorIds?.includes(ADMIN_SECTOR_ID);
+}
+
+// Setores cujas tarefas ficam ocultas no Backlog para quem não é Admin/Gestão.
+export async function getRestrictedSectorIds() {
+  return MANAGER_SECTOR_IDS;
+}
+
+// Admin ou Gestão: acesso total às tarefas.
+export async function isManager(user) {
+  return !!user?.sectorIds?.some(s => MANAGER_SECTOR_IDS.includes(s));
+}
+
+// Setor da tarefa. Tarefas criadas fora do Backlog não têm `sectorId`:
+// usa o primeiro setor do responsável (ou do criador).
+export function taskSectorId(task, users) {
+  if (task.sectorId) return task.sectorId;
+  for (const uid of [responsibleOf(task), task.createdById]) {
+    const sid = users.find(u => u.id === uid)?.sectorIds?.find(s => s !== 'ALL');
+    if (sid) return sid;
+  }
+  return null;
+}
+
+// Pode editar/excluir: responsável, criador ou Admin/Gestão.
+// Sub-tarefas também podem ser editadas por quem gerencia a tarefa pai.
+export function canEditTask(task, user, manager, parent = null) {
+  if (manager) return true;
+  const owns = t => !!t && (t.createdById === user.id || responsibleOf(t) === user.id);
+  return owns(task) || owns(parent);
 }
 
 // ── Reference data CRUD (admin only) ──────────────────────

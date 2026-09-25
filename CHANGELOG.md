@@ -4,6 +4,23 @@ Histórico de novidades e melhorias do aplicativo.
 
 ---
 
+## [1.1.0] — 2026-09-25
+
+### Novidades
+
+- **Backlog** — Nova tela no menu lateral onde você vê as tarefas de todos os setores. Escolha um setor, depois um tipo de atividade, e veja a lista de tarefas com responsável, categoria, prioridade, status e prazo. Tarefas com sub-tarefas podem ser expandidas na própria lista.
+- **Tarefas sem responsável** — Pelo Backlog é possível criar uma tarefa sem responsável, para atribuir a alguém depois. Um filtro mostra só as tarefas que ainda estão sem responsável.
+- **Criar tarefa para qualquer setor** — No Backlog, você escolhe primeiro o setor da tarefa; depois aparecem apenas os tipos de atividade e categorias daquele setor.
+- **Filtros e ordenação na Administração** — Nas abas Tipos de Atividade e Categorias, agora dá para filtrar por setor e por uso em tarefas, e ordenar por nome, setores, quantidade de tarefas e mais.
+
+### Melhorias
+
+- **Quem pode editar uma tarefa** — Além de quem criou, o responsável pela tarefa e os setores Admin e Gestão também podem editar ou excluir. As demais pessoas abrem a tarefa apenas para visualização.
+- **Tarefas de Admin e Gestão protegidas** — No Backlog, as tarefas desses setores só aparecem para quem faz parte deles ou para quem criou a tarefa.
+- **Nova e Editar Categoria** — Os setores agora são escolhidos antes do tipo de atividade, e a lista mostra apenas os tipos disponíveis para os setores marcados. Categorias para "TODOS" só podem usar tipos marcados como "TODOS".
+
+---
+
 ## [1.0.0] — 2026-09-24
 
 Primeira versão do aplicativo.
