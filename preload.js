@@ -8,7 +8,13 @@ contextBridge.exposeInMainWorld('appLifecycle', {
   // Promise; a janela só fecha quando ela terminar (ou após o limite do main).
   onBeforeClose(callback) {
     ipcRenderer.on('app:before-close', async () => {
-      try { await callback(); } finally { ipcRenderer.send('app:close-ready'); }
+      try {
+        await callback();
+      } catch (err) {
+        console.error('[preload] Falha ao salvar antes de fechar:', err);   // fecha mesmo assim
+      } finally {
+        ipcRenderer.send('app:close-ready');
+      }
     });
   },
 });

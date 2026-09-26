@@ -30,6 +30,8 @@ lista-tarefas-artrock/
 ├── preload.js                 # Ponte mínima (contextBridge): window.appLifecycle.onBeforeClose
 ├── updater.js                 # Auto-update via electron-updater
 ├── vite.config.js             # Vite config (root: renderer, output: dist-renderer)
+├── vitest.config.mjs          # Testes: aliases firebase/* → tests/fakes, jsdom, cobertura
+├── tests/                     # Testes automatizados (ver seção "Testes Automatizados")
 ├── package.json               # Deps, scripts, electron-builder config
 ├── firebase.json              # Aponta para firestore.rules
 ├── firestore.rules            # Regras de segurança do Firestore
@@ -156,6 +158,47 @@ comments [{id, userId, text, createdAt, isSystem?}]
 | `npm run build` | Build apenas do renderer |
 | `npm run dist` | Build + gera instalador Windows (.exe) |
 | `npm run dist:publish` | Build + publica no GitHub Releases |
+| `npm test` | Roda todos os testes automatizados (Vitest) |
+| `npm run test:watch` | Testes em modo contínuo (ciclo TDD) |
+| `npm run test:coverage` | Testes + cobertura (`coverage/index.html`) |
+
+---
+
+## Testes Automatizados (TDD)
+
+O projeto segue **TDD**: toda feature ou correção nova começa por um teste que falha
+(vermelho), depois o código mínimo para passar (verde), depois refatoração. Rode
+`npm run test:watch` enquanto desenvolve.
+
+**Regra de ouro: nenhum teste acessa o Firebase ou a rede.**
+- `vitest.config.mjs` troca `firebase/app`, `firebase/auth` e `firebase/firestore` pelos fakes de `tests/fakes/` (banco e sessão em memória).
+- `tests/setup.js` bloqueia `fetch`, `XMLHttpRequest` e `WebSocket` e limpa tudo depois de cada teste (banco falso, sessão, localStorage, DOM, cache do store, timer).
+
+**Stack:** Vitest 5 + jsdom 30 + `@vitest/coverage-v8`.
+
+**Estrutura:**
+```
+tests/
+├── setup.js                 # bloqueio de rede, polyfills do jsdom, limpeza entre testes
+├── fakes/                   # firebase-app / firebase-auth / firebase-firestore em memória
+├── helpers/
+│   ├── world.js             # dados de teste: SECTORS, TYPES, CATEGORIES, USERS, makeTask, seedWorld, signInAs
+│   └── dom.js               # mountAppShell (HTML real do index.html), click, typeInto, choose, waitFor…
+├── unit/                    # funções e componentes isolados (utils, store, auth, card, filtros…)
+├── features/                # uma suíte por funcionalidade, testando a tela como o usuário usa
+└── main/                    # processo principal do Electron (main.js, preload.js, updater.js) com electron-fake.js
+```
+
+**Convenções:**
+- Nomes de `describe`/`it` em português, descrevendo o comportamento esperado.
+- Monte cenários com `seedWorld({ tasks })` + `signInAs(USERS.dev)` + `mountAppShell()`.
+- Espere telas assíncronas com `waitFor(() => expect(...))` — não conte "voltas" fixas.
+- Timer e datas: `vi.useFakeTimers({ now })` + `vi.advanceTimersByTimeAsync(ms)`.
+- O Firestore falso simula falhas e rede: `__failNext(op, code)`, `__setOffline(bool)`, `__holdReads()`, `__writes(colecao, op)`.
+- Testes do Electron rodam com `// @vitest-environment node` e injetam o fake via `mockModule('electron', …)`.
+- Quando um teste revela bug, corrija o código (não o teste) e mantenha o teste como proteção.
+
+**Fora do escopo atual:** as regras do Firestore (`firestore.rules`) só podem ser testadas com o Firebase Emulator (exige Java) — ainda não automatizado.
 
 ---
 

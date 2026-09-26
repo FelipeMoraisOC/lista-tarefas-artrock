@@ -34,9 +34,14 @@ npm run dist
 # Gerar instalador e publicar no GitHub Releases
 # (requer GH_TOKEN configurado)
 npm run dist:publish
+
+# Testes automatizados (100% locais — não acessam o Firebase)
+npm test
+npm run test:watch      # modo contínuo para TDD: roda de novo a cada arquivo salvo
+npm run test:coverage   # + relatório de cobertura em coverage/index.html
 ```
 
-**Requisito:** Node.js 18+
+**Requisito:** Node.js 22.22+ ou 24.15+ (exigido pelo Vite 8 e pelo jsdom dos testes)
 
 ---
 

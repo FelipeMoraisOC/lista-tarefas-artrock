@@ -95,11 +95,12 @@ function tasksChanged() {
 
 export async function createTask(data) {
   const id = newId(data.type === 'subtask' ? 'sub' : 'task');
+  const now = new Date().toISOString();   // mesmo instante: tarefa nova não tem "última atualização"
   const task = {
     ...data,
     id,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
   };
   await setDoc(doc(db, 'tasks', id), task);
   tasksChanged();
@@ -207,6 +208,7 @@ export function taskSectorId(task, users) {
 // Sub-tarefas também podem ser editadas por quem gerencia a tarefa pai.
 export function canEditTask(task, user, manager, parent = null) {
   if (manager) return true;
+  if (!user) return false;   // sem sessão (ex.: caiu enquanto o detalhe abria) → só visualização
   const owns = t => !!t && (t.createdById === user.id || responsibleOf(t) === user.id);
   return owns(task) || owns(parent);
 }

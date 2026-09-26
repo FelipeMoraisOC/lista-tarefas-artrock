@@ -4,3 +4,4 @@ scripts/serviceAccountKey.json
 release/
 *.blockmap
 login-claude.md
+coverage/

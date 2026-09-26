@@ -829,21 +829,26 @@ export async function openTaskDetail(task, onSave) {
     descEdit.style.display = 'none'; descView.style.display = 'block';
     descBtn.style.display = '';
   }
+  function onDescriptionChange(value) {
+    W.description = value;
+    saveDescriptionDraft(W.id, value);
+    markDirty();
+  }
+  descTa.addEventListener('input', () => onDescriptionChange(descTa.value));
+
   function openDescEditor() {
     descView.style.display = 'none'; descEdit.style.display = 'block';
     descBtn.style.display = 'none';
-    // Init EasyMDE on the textarea
+    // Init EasyMDE on the textarea. Sem a biblioteca (CDN fora do ar, sem
+    // internet), segue no textarea simples — o listener de input acima.
     if (!ddDescEditor) {
       ddDescEditor = initEditor(descTa, {
         placeholder: 'Escreva a descrição em Markdown...',
         minHeight: 180,
         autofocus: true,
       });
-      ddDescEditor.codemirror.on('change', () => {
-        W.description = ddDescEditor.value();
-        saveDescriptionDraft(W.id, W.description);
-        markDirty();
-      });
+      if (ddDescEditor) ddDescEditor.codemirror.on('change', () => onDescriptionChange(ddDescEditor.value()));
+      else descTa.focus();
     }
   }
   descBtn.addEventListener('click', openDescEditor);

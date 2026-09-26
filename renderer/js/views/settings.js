@@ -10,7 +10,8 @@ import {
 import { esc } from './modals.js';
 import { showToast } from '../utils.js';
 
-export async function initSettings(container) {
+// `reload` pode ser trocado nos testes (o padrão recarrega a janela).
+export async function initSettings(container, { reload = () => location.reload() } = {}) {
   const [user, sectors] = await Promise.all([getCurrentUser(), getSectors()]);
   const sectorNames = (user.sectorIds ?? [])
     .map(id => sectors.find(s => s.id === id)?.name ?? id)
@@ -75,7 +76,7 @@ export async function initSettings(container) {
   document.getElementById('set-reload').addEventListener('click', async e => {
     e.currentTarget.disabled = true;
     await flushTaskTimer();   // grava o tempo atual antes de recarregar
-    location.reload();
+    reload();
   });
 
   document.getElementById('set-logout').addEventListener('click', async e => {

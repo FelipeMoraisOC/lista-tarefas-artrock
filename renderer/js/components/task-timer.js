@@ -78,8 +78,7 @@ let lastBeatSave = 0;
 let drag         = null;
 let staleDom     = false;     // dados mudaram durante um arraste → renderizar ao soltar
 let menu         = null;
-let bound        = false;
-let savedHooks   = {};        // para reativar o timer pelas Configurações
+let savedHooks   = {};      // para reativar o timer pelas Configurações
 
 const panel    = () => document.getElementById('task-timer');
 const isActive = id => st.running && st.activeId === id;
@@ -369,7 +368,8 @@ function tick() {
     }
     if (st.running) {
       st.lastBeat = now;
-      if (now - lastBeatSave >= BEAT_SAVE_MS) {
+      // (now < lastBeatSave: relógio voltou — salva já, senão ficaria sem salvar até alcançá-lo)
+      if (now < lastBeatSave || now - lastBeatSave >= BEAT_SAVE_MS) {
         lastBeatSave = now;
         persist();
       }
@@ -590,8 +590,8 @@ function closeMenu() {
 
 function bindPanel() {
   const root = panel();
-  if (!root || bound) return;
-  bound = true;
+  if (!root || root.dataset.ttBound) return;   // marca no elemento: se o painel for recriado, liga de novo
+  root.dataset.ttBound = '1';
 
   root.addEventListener('pointerdown', onPointerDown);
   root.addEventListener('pointermove', onPointerMove);
@@ -646,6 +646,7 @@ export function teardownTaskTimer() {
   clearInterval(tickHandle);
   clearTimeout(reloadTimer);
   tickHandle = null;
+  lastBeatSave = 0;
   window.removeEventListener('tasks-changed', onTasksChanged);
   closeMenu();
   drag = null;

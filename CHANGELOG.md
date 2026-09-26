@@ -4,6 +4,17 @@ Histórico de novidades e melhorias do aplicativo.
 
 ---
 
+## [1.1.1] — 2026-09-26
+
+### Correções
+
+- **Editar a descrição sem internet** — Antes, se o aplicativo abrisse sem internet, o botão "Editar" da descrição de uma tarefa não funcionava. Agora a descrição pode ser editada normalmente, num campo de texto simples.
+- **Histórico de tarefa nova** — Tarefas recém-criadas mostravam no histórico uma "Última atualização" que não tinha acontecido. Agora aparece só o registro de criação.
+- **Timer mais seguro** — Se o relógio do computador fosse ajustado para trás, o timer podia deixar de guardar o tempo por um período e, se o aplicativo travasse nesse meio-tempo, horas podiam se perder. Isso foi corrigido.
+- **Abrir tarefa ao sair da conta** — Se a sessão fosse encerrada enquanto os detalhes de uma tarefa abriam, a janela podia travar. Agora ela abre só para visualização.
+
+---
+
 ## [1.1.0] — 2026-09-25
 
 ### Novidades
