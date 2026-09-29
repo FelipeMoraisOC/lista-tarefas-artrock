@@ -8,28 +8,76 @@ import {
 import { renderMd } from '../components/markdown.js';
 import { initEditor, destroyAllEditors } from '../components/editor.js';
 import { createSearchableSelect } from '../components/searchable-select.js';
+import { trapTab, focusables } from '../components/a11y.js';
 import { showToast, formatDatetime, formatDuration, todayISO, generateId, responsibleOf } from '../utils.js';
 import { timerHoursFor, syncTimerHours, commitTimerIfActive, onTimerTick } from '../components/task-timer.js';
 
 // ── Modal shell helpers ───────────────────────────────────
 
-export function openShell(content, cls = '') {
+// Diálogo aberto: quem abriu (recebe o foco de volta ao fechar). Um modal pode
+// abrir outro no lugar (ex.: sub-tarefa, confirmação) — vale o primeiro que abriu.
+let shell = null;
+
+// `label`: nome do diálogo; `labelledBy`: id de um elemento do conteúdo que o nomeia.
+export function openShell(content, cls = '', { label = '', labelledBy = '' } = {}) {
   const overlay   = document.getElementById('modal-overlay');
   const container = document.getElementById('modal-container');
-  container.innerHTML = `<div class="modal tc tc-scrollable ${cls}" id="_modal">${content}</div>`;
+  const name = labelledBy ? `aria-labelledby="${labelledBy}"` : label ? `aria-label="${esc(label)}"` : '';
+  const wasOpen = !overlay.classList.contains('hidden');
+  if (!wasOpen) {
+    releaseShell();
+    shell = { returnTo: document.activeElement };
+    document.getElementById('app')?.setAttribute('inert', '');
+    document.addEventListener('keydown', onShellKey);
+    document.addEventListener('focusin', onShellFocusIn);
+  }
+
+  container.innerHTML = `<div class="modal tc tc-scrollable ${cls}" id="_modal" role="dialog" aria-modal="true" tabindex="-1" ${name}>${content}</div>`;
   overlay.classList.remove('hidden');
 
   document.getElementById('modal-scroll-wrap').scrollTop = 0;
   document.getElementById('modal-backdrop').onclick = closeModal;
-
-  const esc = e => { if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', esc); } };
-  document.addEventListener('keydown', esc);
+  // Foco no diálogo; quem abriu pode em seguida focar um campo específico
+  document.getElementById('_modal').focus();
 }
 
 export function closeModal() {
   destroyAllEditors();
   document.getElementById('modal-overlay').classList.add('hidden');
   document.getElementById('modal-container').innerHTML = '';
+
+  const returnTo = releaseShell();
+  if (returnTo?.isConnected) returnTo.focus();
+}
+
+// Desfaz o isolamento do diálogo; devolve quem o abriu.
+function releaseShell() {
+  if (!shell) return null;
+  const { returnTo } = shell;
+  shell = null;
+  document.removeEventListener('keydown', onShellKey);
+  document.removeEventListener('focusin', onShellFocusIn);
+  document.getElementById('app')?.removeAttribute('inert');
+  return returnTo;
+}
+
+function onShellKey(e) {
+  const dialog = document.getElementById('_modal');
+  if (!dialog) return;
+  if (e.key === 'Escape') { closeModal(); return; }
+  if (e.key !== 'Tab') return;
+  trapTab(e, dialog);
+  // Rede de segurança: um controle que some no meio do Tab joga o foco no <body>
+  setTimeout(() => {
+    const d = document.getElementById('_modal');
+    if (shell && d && document.activeElement === document.body) (focusables(d)[0] ?? d).focus();
+  });
+}
+
+// Rede de segurança: o app por trás fica `inert`, mas se o foco chegar lá, volta ao diálogo
+function onShellFocusIn(e) {
+  const app = document.getElementById('app');
+  if (app?.contains(e.target)) document.getElementById('_modal')?.focus();
 }
 
 // ── Shared helpers ────────────────────────────────────────
@@ -109,89 +157,122 @@ function setErr(inputId, hasError) {
   (el.closest('.tc-field') ?? el.parentElement)?.classList.toggle('has-error', hasError);
 }
 
-function openResponsiblePicker(users, currentId, { allowNone = false } = {}) {
+// Diálogo "Escolher Responsável". Teclado: digitar filtra, ↑/↓ escolhem,
+// Enter confirma, Esc cancela; o foco volta para quem abriu.
+function openResponsiblePicker(users, currentId, { allowNone = false, opener = null } = {}) {
   return new Promise(resolve => {
+    const returnTo = opener ?? document.activeElement;
     const overlay = document.createElement('div');
     overlay.className = 'tc-resp-modal';
     let selectedId = currentId || '';
+    let visible = [];   // ids na ordem da lista ('' = Sem responsável)
 
-    function render(filter = '') {
-      const term = filter.toLowerCase().trim();
-      const filtered = term
-        ? users.filter(u => u.name.toLowerCase().includes(term))
-        : users;
+    const checkIcon = `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:var(--selected);flex-shrink:0" aria-hidden="true"><path d="${ICONS.check}"/></svg>`;
+    const option = (id, avatarHtml, name, role) => `
+      <div class="tc-resp-user${id === selectedId ? ' selected' : ''}" data-id="${id}"
+           id="resp-opt-${id || 'none'}" role="option" aria-selected="${id === selectedId}">
+        ${avatarHtml}
+        <div class="tc-resp-user-info">
+          <div class="tc-resp-user-name">${esc(name)}</div>
+          <div class="tc-resp-user-role">${esc(role)}</div>
+        </div>
+        ${id === selectedId ? checkIcon : ''}
+      </div>`;
 
+    overlay.innerHTML = `
+      <div class="tc-resp-backdrop"></div>
+      <div class="tc tc-resp-card" role="dialog" aria-modal="true" aria-labelledby="resp-title">
+        <div class="tc-resp-header">
+          <span class="tc-resp-title" id="resp-title">Escolher Responsável</span>
+          <button type="button" class="tc-icon-btn" id="resp-close" title="Fechar" aria-label="Fechar">✕</button>
+        </div>
+        <div class="tc-resp-search-wrap">
+          <input type="text" class="tc-resp-search" id="resp-search" placeholder="Filtrar por nome..."
+            autocomplete="off" aria-label="Filtrar por nome" role="combobox" aria-expanded="true"
+            aria-controls="resp-list" aria-autocomplete="list" />
+        </div>
+        <div class="tc-resp-list" id="resp-list" role="listbox" aria-label="Pessoas"></div>
+        <div class="tc-resp-footer">
+          <button type="button" class="tc-btn" id="resp-cancel">Cancelar</button>
+          <button type="button" class="tc-btn tc-btn-primary" id="resp-confirm">Confirmar</button>
+        </div>
+      </div>`;
+
+    const card        = overlay.querySelector('.tc-resp-card');
+    const list        = overlay.querySelector('#resp-list');
+    const searchInput = overlay.querySelector('#resp-search');
+
+    // Só a lista é refeita: o campo de busca mantém o foco e o cursor
+    function renderList() {
+      const term = searchInput.value.toLowerCase().trim();
+      const filtered = term ? users.filter(u => u.name.toLowerCase().includes(term)) : users;
       // Opção "Sem responsável" — usada no Backlog para atribuir depois
-      const noneHtml = allowNone && !term ? `
-            <div class="tc-resp-user${!selectedId ? ' selected' : ''}" data-id="">
-              <span class="tc-avatar tc-avatar-none">?</span>
-              <div class="tc-resp-user-info">
-                <div class="tc-resp-user-name">Sem responsável</div>
-                <div class="tc-resp-user-role">Atribuir depois</div>
-              </div>
-              ${!selectedId ? `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:#6ea8ff;flex-shrink:0"><path d="${ICONS.check}"/></svg>` : ''}
-            </div>` : '';
+      const withNone = allowNone && !term;
+      visible = [...(withNone ? [''] : []), ...filtered.map(u => u.id)];
 
-      const listHtml = noneHtml + (filtered.length
-        ? filtered.map(u => `
-            <div class="tc-resp-user${u.id === selectedId ? ' selected' : ''}" data-id="${u.id}">
-              <span class="tc-avatar">${esc(initials(u))}</span>
-              <div class="tc-resp-user-info">
-                <div class="tc-resp-user-name">${esc(u.name)}</div>
-                <div class="tc-resp-user-role">${esc(u.role ?? '')}</div>
-              </div>
-              ${u.id === selectedId ? `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:#6ea8ff;flex-shrink:0"><path d="${ICONS.check}"/></svg>` : ''}
-            </div>`).join('')
-        : `<div class="tc-resp-empty">Nenhum usuário encontrado</div>`);
+      list.innerHTML =
+        (withNone ? option('', '<span class="tc-avatar tc-avatar-none">?</span>', 'Sem responsável', 'Atribuir depois') : '') +
+        (filtered.length
+          ? filtered.map(u => option(u.id, `<span class="tc-avatar">${esc(initials(u))}</span>`, u.name, u.role ?? '')).join('')
+          : '<div class="tc-resp-empty">Nenhum usuário encontrado</div>');
 
-      overlay.innerHTML = `
-        <div class="tc-resp-backdrop"></div>
-        <div class="tc tc-resp-card">
-          <div class="tc-resp-header">
-            <span class="tc-resp-title">Escolher Responsável</span>
-            <button class="tc-icon-btn" id="resp-close" title="Fechar">✕</button>
-          </div>
-          <div class="tc-resp-search-wrap">
-            <input type="text" class="tc-resp-search" id="resp-search" placeholder="Filtrar por nome..." value="${esc(filter)}" autocomplete="off" />
-          </div>
-          <div class="tc-resp-list">${listHtml}</div>
-          <div class="tc-resp-footer">
-            <button class="tc-btn" id="resp-cancel">Cancelar</button>
-            <button class="tc-btn tc-btn-primary" id="resp-confirm">Confirmar</button>
-          </div>
-        </div>`;
+      const active = visible.includes(selectedId) ? list.querySelector('[aria-selected="true"]') : null;
+      if (active) {
+        searchInput.setAttribute('aria-activedescendant', active.id);
+        active.scrollIntoView?.({ block: 'nearest' });
+      } else {
+        searchInput.removeAttribute('aria-activedescendant');
+      }
+    }
 
-      overlay.querySelector('#resp-close').onclick = close;
-      overlay.querySelector('.tc-resp-backdrop').onclick = close;
-      overlay.querySelector('#resp-cancel').onclick = close;
-      overlay.querySelector('#resp-confirm').onclick = () => {
-        done(selectedId);
-      };
+    function choose(id) {
+      selectedId = id;
+      renderList();
+    }
 
-      const searchInput = overlay.querySelector('#resp-search');
-      searchInput.addEventListener('input', e => render(e.target.value));
-      searchInput.focus();
-
-      overlay.querySelectorAll('.tc-resp-user').forEach(el => {
-        el.addEventListener('click', () => {
-          selectedId = el.dataset.id;
-          render(searchInput.value);
-        });
-      });
+    function move(step) {
+      if (!visible.length) return;
+      const at = visible.indexOf(selectedId);
+      const next = at === -1 ? (step > 0 ? 0 : visible.length - 1)
+                             : Math.min(Math.max(at + step, 0), visible.length - 1);
+      choose(visible[next]);
     }
 
     function close() { done(null); }
     function done(val) {
       overlay.remove();
+      if (returnTo?.isConnected) returnTo.focus();
       resolve(val);
     }
 
-    overlay.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { e.stopPropagation(); close(); }
+    overlay.querySelector('#resp-close').onclick = close;
+    overlay.querySelector('.tc-resp-backdrop').onclick = close;
+    overlay.querySelector('#resp-cancel').onclick = close;
+    overlay.querySelector('#resp-confirm').onclick = () => done(selectedId);
+
+    searchInput.addEventListener('input', () => {
+      renderList();
+      // Filtrou e a pessoa escolhida sumiu da lista: o primeiro resultado passa a ser o escolhido
+      if (searchInput.value.trim() && visible.length && !visible.includes(selectedId)) choose(visible[0]);
+    });
+    list.addEventListener('click', e => {
+      const opt = e.target.closest('[role="option"]');
+      if (opt) choose(opt.dataset.id);
     });
 
-    render();
+    // Teclas tratadas aqui não chegam ao modal de baixo
+    overlay.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.stopPropagation(); close(); return; }
+      if (e.key === 'Tab') { e.stopPropagation(); trapTab(e, card); return; }
+      if (e.target !== searchInput) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); move(-1); }
+      if (e.key === 'Enter')     { e.preventDefault(); e.stopPropagation(); done(selectedId); }
+    });
+
     document.body.appendChild(overlay);
+    renderList();
+    searchInput.focus();
   });
 }
 
@@ -246,20 +327,20 @@ export async function openCreateTask(onSave, parentId = null, parentData = null,
       <div class="tc-topbar-left">
         ${backlog ? `
         <span class="tc-field">
-          <select class="tc-pill-select" id="fc-sector" ${isSub ? 'disabled' : ''} title="Setor">
+          <select class="tc-pill-select" id="fc-sector" ${isSub ? 'disabled' : ''} title="Setor" aria-label="Setor">
             <option value="">Setor...</option>
             ${sectors.filter(s => s.id !== 'ALL').map(s => `<option value="${s.id}" ${s.id === sectorId ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
           </select>
         </span>` : ''}
         <span class="tc-field">
-          <select class="tc-pill-select" id="fc-at" ${isSub ? 'disabled' : ''} title="Tipo de Atividade">
+          <select class="tc-pill-select" id="fc-at" ${isSub ? 'disabled' : ''} title="Tipo de Atividade" aria-label="Tipo de Atividade">
             ${isSub
               ? `<option value="${preAtId}">${esc(activityTypes.find(a => a.id === preAtId)?.name ?? 'Tipo de atividade')}</option>`
               : typeOptions(sectorId, presetAt)}
           </select>
         </span>
         <span class="tc-field">
-          <select class="tc-pill-select" id="fc-cat" ${isSub ? 'disabled' : ''} title="Categoria">
+          <select class="tc-pill-select" id="fc-cat" ${isSub ? 'disabled' : ''} title="Categoria" aria-label="Categoria">
             ${isSub
               ? `<option value="${preCatId}">${esc(categories.find(c => c.id === preCatId)?.name ?? 'Categoria')}</option>`
               : `<option value="">${presetAt ? 'Categoria...' : 'Selecione o tipo primeiro...'}</option>
@@ -268,7 +349,7 @@ export async function openCreateTask(onSave, parentId = null, parentData = null,
         </span>
       </div>
       <div class="tc-topbar-right">
-        <button class="tc-icon-btn" id="mc-close" title="Fechar">✕</button>
+        <button class="tc-icon-btn" id="mc-close" title="Fechar" aria-label="Fechar">✕</button>
       </div>
     </div>
 
@@ -281,29 +362,30 @@ export async function openCreateTask(onSave, parentId = null, parentData = null,
           <button class="tc-check" id="fc-check" title="Marcar como concluída">${icon('check', 14)}</button>
           <div class="tc-field tc-title-field">
             <input type="text" class="tc-title-input" id="fc-name"
-              placeholder="${isSub ? 'Nome da sub-tarefa' : 'Nome da tarefa'}" autocomplete="off" />
+              placeholder="${isSub ? 'Nome da sub-tarefa' : 'Nome da tarefa'}"
+              aria-label="${isSub ? 'Nome da sub-tarefa' : 'Nome da tarefa'}" autocomplete="off" />
           </div>
         </div>
 
         <div class="tc-meta-row">
           <div class="tc-meta">
-            <div class="tc-meta-label">Status</div>
+            <label class="tc-meta-label" for="fc-status">Status</label>
             <select class="tc-chip-select" id="fc-status">
               ${statusOpts.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
           </div>
           <div class="tc-meta">
-            <div class="tc-meta-label">Etiquetas</div>
+            <label class="tc-meta-label" for="fc-priority">Prioridade</label>
             <select class="tc-chip-select tc-prio-média" id="fc-priority">
               ${priorOpts.map(p => `<option value="${p}" ${p === 'Média' ? 'selected' : ''}>${p}</option>`).join('')}
             </select>
           </div>
           <div class="tc-meta tc-field">
-            <div class="tc-meta-label req">Data Entrega</div>
-            <input type="date" class="tc-date" id="fc-deadline" />
+            <label class="tc-meta-label req" for="fc-deadline">Data Entrega</label>
+            <input type="date" class="tc-date" id="fc-deadline" aria-required="true" />
           </div>
           <div class="tc-meta">
-            <div class="tc-meta-label">Solicitante</div>
+            <label class="tc-meta-label" for="fc-requester">Solicitante</label>
             <select class="tc-chip-select" id="fc-requester">
               <option value="">Nenhum</option>
               ${users.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('')}
@@ -314,7 +396,7 @@ export async function openCreateTask(onSave, parentId = null, parentData = null,
         <div class="tc-section">
           ${sectionHead('desc', 'Descrição', '<span class="tc-hint">suporta Markdown</span>')}
           <div class="tc-section-body">
-            <textarea class="tc-textarea" id="fc-desc" rows="5"
+            <textarea class="tc-textarea" id="fc-desc" rows="5" aria-label="Descrição"
               placeholder="Adicione uma descrição mais detalhada..."></textarea>
           </div>
         </div>
@@ -323,19 +405,19 @@ export async function openCreateTask(onSave, parentId = null, parentData = null,
           ${sectionHead('info', 'Detalhes')}
           <div class="tc-section-body tc-details-grid" id="fc-details">
             <div class="tc-field">
-              <div class="tc-meta-label">Data de Início</div>
+              <label class="tc-meta-label" for="fc-start">Data de Início</label>
               <input type="date" class="tc-input" id="fc-start" />
             </div>
             <div class="tc-field">
-              <div class="tc-meta-label">Data de Conclusão</div>
+              <label class="tc-meta-label" for="fc-end">Data de Conclusão</label>
               <input type="date" class="tc-input" id="fc-end" />
             </div>
             <div class="tc-field">
-              <div class="tc-meta-label tc-req-done">Horas Investidas</div>
+              <label class="tc-meta-label tc-req-done" for="fc-hours">Horas Investidas</label>
               <input type="number" class="tc-input" id="fc-hours" min="0.5" step="0.5" placeholder="Ex: 4.5" />
             </div>
             <div class="tc-field">
-              <div class="tc-meta-label">% de Conclusão</div>
+              <label class="tc-meta-label" for="fc-pct">% de Conclusão</label>
               <div class="tc-range">
                 <input type="range" class="completion-slider" id="fc-pct" min="0" max="100" value="0" step="5" />
                 <span id="fc-pct-lbl">0%</span>
@@ -353,7 +435,7 @@ export async function openCreateTask(onSave, parentId = null, parentData = null,
       <button class="tc-btn" id="mc-cancel">Cancelar</button>
       <button class="tc-btn tc-btn-primary" id="mc-save">${icon('save', 15)} ${isSub ? 'Criar Sub-tarefa' : 'Criar Tarefa'}</button>
     </div>
-  `, 'tc-create');
+  `, 'tc-create', { label: isSub ? 'Nova sub-tarefa' : 'Nova tarefa' });
 
   const $ = id => document.getElementById(id);
   const root = $('_modal');
@@ -371,7 +453,7 @@ export async function openCreateTask(onSave, parentId = null, parentData = null,
     respBtn.innerHTML = `${icon('plus', 15)} ${u ? esc(u.name) : backlog ? 'Sem responsável' : 'Responsável'}`;
   }
   respBtn.addEventListener('click', async () => {
-    const picked = await openResponsiblePicker(usersFor(sectorId), chosenResponsibleId, { allowNone: backlog });
+    const picked = await openResponsiblePicker(usersFor(sectorId), chosenResponsibleId, { allowNone: backlog, opener: respBtn });
     if (picked !== null) setResponsible(picked);
   });
 
@@ -569,16 +651,16 @@ export async function openTaskDetail(task, onSave) {
   openShell(`
     <div class="tc-topbar">
       <div class="tc-topbar-left">
-        <select class="tc-pill-select" id="dd-at" ${isSub ? 'disabled' : ''} title="Tipo de Atividade">
+        <select class="tc-pill-select" id="dd-at" ${isSub ? 'disabled' : ''} title="Tipo de Atividade" aria-label="Tipo de Atividade">
           ${myAT().map(a => `<option value="${a.id}" ${W.activityTypeId === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
         </select>
-        <select class="tc-pill-select" id="dd-cat" ${isSub ? 'disabled' : ''} title="Categoria">
+        <select class="tc-pill-select" id="dd-cat" ${isSub ? 'disabled' : ''} title="Categoria" aria-label="Categoria">
           ${catOptions(catsFor(W.activityTypeId), W.categoryId)}
         </select>
       </div>
       <div class="tc-topbar-right">
         <button class="tc-btn tc-btn-primary tc-btn-sm" id="dd-save" style="display:none">${icon('save', 13)} Salvar</button>
-        <button class="tc-icon-btn" id="dd-close" title="Fechar">✕</button>
+        <button class="tc-icon-btn" id="dd-close" title="Fechar" aria-label="Fechar">✕</button>
       </div>
     </div>
 
@@ -593,30 +675,31 @@ export async function openTaskDetail(task, onSave) {
         <div class="tc-title-row">
           <button class="tc-check" id="dd-check" title="Marcar como concluída">${icon('check', 14)}</button>
           <div class="tc-title-field">
-            <div id="dd-name-view" class="tc-title-view" title="Clique para editar">${esc(W.name)}</div>
-            <input id="dd-name-input" class="tc-title-input" type="text" value="${esc(W.name)}" style="display:none" />
+            <div id="dd-name-view" class="tc-title-view"
+              ${readOnly ? '' : 'role="button" tabindex="0" title="Clique ou tecle Enter para editar o nome"'}>${esc(W.name)}</div>
+            <input id="dd-name-input" class="tc-title-input" type="text" value="${esc(W.name)}" aria-label="Nome da tarefa" style="display:none" />
           </div>
         </div>
 
         <div class="tc-meta-row">
           <div class="tc-meta">
-            <div class="tc-meta-label">Status</div>
+            <label class="tc-meta-label" for="dd-status">Status</label>
             <select class="tc-chip-select tc-status-${slug(W.status)}" id="dd-status">
               ${statusOpts.map(s => `<option value="${s}" ${W.status === s ? 'selected' : ''}>${s}</option>`).join('')}
             </select>
           </div>
           <div class="tc-meta">
-            <div class="tc-meta-label">Prioridade</div>
+            <label class="tc-meta-label" for="dd-priority">Prioridade</label>
             <select class="tc-chip-select tc-prio-${slug(W.priority)}" id="dd-priority">
               ${priorOpts.map(p => `<option value="${p}" ${W.priority === p ? 'selected' : ''}>${p}</option>`).join('')}
             </select>
           </div>
           <div class="tc-meta">
-            <div class="tc-meta-label">Data Entrega</div>
+            <label class="tc-meta-label" for="dd-deadline">Data Entrega</label>
             <input type="date" class="tc-date" id="dd-deadline" value="${W.deadline ?? ''}" />
           </div>
           <div class="tc-meta">
-            <div class="tc-meta-label">Solicitante</div>
+            <label class="tc-meta-label" for="dd-req">Solicitante</label>
             <select class="tc-chip-select" id="dd-req">
               <option value="">Nenhum</option>
               ${users.map(u => `<option value="${u.id}" ${W.requesterId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
@@ -635,7 +718,7 @@ export async function openTaskDetail(task, onSave) {
           <div class="tc-section-body">
             <div id="dd-desc-view" class="markdown-body tc-md">${W.description ? renderMd(W.description) : descPlaceholder}</div>
             <div id="dd-desc-edit" style="display:none">
-              <textarea class="tc-textarea" id="dd-desc-ta" rows="8">${esc(W.description ?? '')}</textarea>
+              <textarea class="tc-textarea" id="dd-desc-ta" rows="8" aria-label="Descrição">${esc(W.description ?? '')}</textarea>
               <div class="tc-inline-actions">
                 <span class="tc-hint">Rascunho salvo automaticamente neste computador.</span>
                 <button class="tc-btn tc-btn-sm tc-btn-flat" id="dd-desc-close">Fechar edição</button>
@@ -651,7 +734,7 @@ export async function openTaskDetail(task, onSave) {
             <div class="tc-progress"><span class="tc-progress-pct" id="dd-check-pct">0%</span><div class="tc-progress-bar"><div id="dd-check-bar"></div></div></div>
             <div id="dd-check-list" class="tc-check-list"></div>
             <div class="tc-check-add tc-edit-only">
-              <input type="text" class="tc-input" id="dd-check-input" placeholder="Adicionar um item..." />
+              <input type="text" class="tc-input" id="dd-check-input" placeholder="Adicionar um item..." aria-label="Novo item do checklist" />
               <button class="tc-btn tc-btn-sm" id="dd-check-add-btn">Adicionar</button>
             </div>
           </div>
@@ -674,20 +757,20 @@ export async function openTaskDetail(task, onSave) {
           ${sectionHead('calendar', 'Para Entrega')}
           <div class="tc-section-body tc-details-grid">
             <div class="tc-field">
-              <div class="tc-meta-label ${!isSub ? 'tc-req-done' : ''}">Data de Início</div>
+              <label class="tc-meta-label ${!isSub ? 'tc-req-done' : ''}" for="dd-start">Data de Início</label>
               <input type="date" class="tc-input" id="dd-start" value="${W.startDate ?? ''}" />
             </div>
             <div class="tc-field">
-              <div class="tc-meta-label ${!isSub ? 'tc-req-done' : ''}">Data de Conclusão</div>
+              <label class="tc-meta-label ${!isSub ? 'tc-req-done' : ''}" for="dd-end">Data de Conclusão</label>
               <input type="date" class="tc-input" id="dd-end" value="${W.endDate ?? ''}" />
             </div>
             <div class="tc-field">
-              <div class="tc-meta-label ${!isSub ? 'tc-req-done' : ''}">Horas Investidas</div>
+              <label class="tc-meta-label ${!isSub ? 'tc-req-done' : ''}" for="dd-hours">Horas Investidas</label>
               <input type="number" class="tc-input" id="dd-hours" value="${round2(W.hoursInvested)}" min="0" step="any" placeholder="—" />
               <div class="tc-hint tc-timer-hint" id="dd-hours-live"></div>
             </div>
             <div class="tc-field">
-              <div class="tc-meta-label">% de Conclusão</div>
+              <label class="tc-meta-label" for="dd-pct">% de Conclusão</label>
               <div class="tc-range">
                 <input type="range" class="completion-slider" id="dd-pct" min="0" max="100" value="${W.completionPercent ?? 0}" step="5" />
                 <span id="dd-pct-lbl">${W.completionPercent ?? 0}%</span>
@@ -741,7 +824,7 @@ export async function openTaskDetail(task, onSave) {
           <button class="tc-btn tc-btn-sm" id="dd-activity-toggle">Ocultar Detalhes</button>
         </div>
         <div class="tc-comment-box tc-edit-only">
-          <textarea class="tc-comment-input" id="dd-comment" rows="1" placeholder="Escrever um comentário..."></textarea>
+          <textarea class="tc-comment-input" id="dd-comment" rows="1" placeholder="Escrever um comentário..." aria-label="Escrever um comentário"></textarea>
           <div class="tc-comment-actions" id="dd-comment-actions">
             <button class="tc-btn tc-btn-primary tc-btn-sm" id="dd-comment-save">Salvar</button>
             <span class="tc-hint">Ctrl+Enter para enviar</span>
@@ -750,7 +833,7 @@ export async function openTaskDetail(task, onSave) {
         <div class="tc-feed" id="dd-feed"></div>
       </aside>
     </div>
-  `, 'tc-detail');
+  `, 'tc-detail', { labelledBy: 'dd-name-view' });
 
   const $ = id => document.getElementById(id);
   const root = $('_modal');
@@ -806,11 +889,18 @@ export async function openTaskDetail(task, onSave) {
     nameInput.style.display = 'block';
     nameInput.focus(); nameInput.select();
   });
-  nameInput.addEventListener('blur', () => {
+  nameView.addEventListener('keydown', e => {
+    if (readOnly || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    nameView.click();
+  });
+  nameInput.addEventListener('blur', e => {
     const v = nameInput.value.trim();
     if (v && v !== W.name) { W.name = v; nameView.textContent = v; markDirty(); }
     nameView.style.display = 'block';
     nameInput.style.display = 'none';
+    // Enter/Esc (o foco não foi para outro lugar): o foco volta para o nome
+    if (!e.relatedTarget && !readOnly) nameView.focus();
   });
   nameInput.addEventListener('keydown', e => {
     if (e.key === 'Enter')  nameInput.blur();
@@ -1009,7 +1099,10 @@ export async function openTaskDetail(task, onSave) {
 
   const commentInput = $('dd-comment');
   commentInput.addEventListener('focus', () => { $('dd-comment-actions').style.display = 'flex'; commentInput.rows = 3; });
-  commentInput.addEventListener('blur', () => {
+  // Esconde só quando o foco sai da caixa inteira (Tab do campo para o Salvar não o faz sumir)
+  const commentBox = commentInput.closest('.tc-comment-box');
+  commentBox.addEventListener('focusout', e => {
+    if (commentBox.contains(e.relatedTarget)) return;
     if (!commentInput.value.trim()) { $('dd-comment-actions').style.display = 'none'; commentInput.rows = 1; }
   });
 
@@ -1199,10 +1292,10 @@ export function openConfirm({
       <div class="tc-topbar">
         <div class="tc-topbar-left">
           <span class="tc-section-icon">${icon(danger ? 'warn' : 'info', 20)}</span>
-          <span class="tc-section-title">${esc(title)}</span>
+          <span class="tc-section-title" id="cf-title">${esc(title)}</span>
         </div>
         <div class="tc-topbar-right">
-          <button class="tc-icon-btn" id="cf-close" title="Fechar">✕</button>
+          <button class="tc-icon-btn" id="cf-close" title="Fechar" aria-label="Fechar">✕</button>
         </div>
       </div>
       <div class="tc-body tc-body-single">
@@ -1218,7 +1311,7 @@ export function openConfirm({
         <button class="tc-btn" id="cf-no">Cancelar</button>
         <button class="tc-btn ${danger ? 'tc-btn-danger' : 'tc-btn-primary'}" id="cf-yes" ${requiredText ? 'disabled' : ''}>${esc(confirmLabel)}</button>
       </div>
-    `, 'tc-confirm');
+    `, 'tc-confirm', { labelledBy: 'cf-title' });
 
     const onKey = e => { if (e.key === 'Escape') done(false); };
 

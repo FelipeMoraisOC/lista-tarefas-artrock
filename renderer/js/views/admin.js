@@ -8,6 +8,7 @@ import {
 } from '../store.js';
 import { openShell, closeModal, openConfirm, esc, icon } from './modals.js';
 import { showToast } from '../utils.js';
+import { setPressed, keepFocus } from '../components/a11y.js';
 
 const ALL = 'ALL';
 
@@ -64,7 +65,7 @@ function sectorPicker(sectors, selected) {
   const isAll = sel.has(ALL);
 
   return `
-    <div class="adm-sector-grid" id="af-sectors">
+    <div class="adm-sector-grid" id="af-sectors" role="group" aria-labelledby="af-sectors-label">
       ${sectors.map(s => `
         <label class="adm-sector-item${s.id === ALL ? ' adm-sector-all' : ''}">
           <input type="checkbox" value="${s.id}"
@@ -101,23 +102,23 @@ function openActivityTypeForm({ model, sectors, onDone }) {
     <div class="tc-topbar">
       <div class="tc-topbar-left">
         <span class="tc-section-icon">${icon('list', 20)}</span>
-        <span class="tc-section-title">${isEdit ? 'Editar Tipo de Atividade' : 'Novo Tipo de Atividade'}</span>
+        <span class="tc-section-title" id="af-title">${isEdit ? 'Editar Tipo de Atividade' : 'Novo Tipo de Atividade'}</span>
       </div>
       <div class="tc-topbar-right">
-        <button class="tc-icon-btn" id="af-close" title="Fechar">✕</button>
+        <button class="tc-icon-btn" id="af-close" title="Fechar" aria-label="Fechar">✕</button>
       </div>
     </div>
 
     <div class="tc-body tc-body-single">
       <div class="tc-main">
         <div class="tc-field adm-form-field">
-          <div class="tc-meta-label req">Nome</div>
-          <input type="text" class="tc-input" id="af-name" autocomplete="off"
+          <label class="tc-meta-label req" for="af-name">Nome</label>
+          <input type="text" class="tc-input" id="af-name" autocomplete="off" aria-required="true"
             placeholder="Ex: Reunião" value="${esc(model?.name ?? '')}" />
         </div>
 
         <div class="adm-form-field">
-          <div class="tc-meta-label req">Setores com acesso</div>
+          <div class="tc-meta-label req" id="af-sectors-label">Setores com acesso</div>
           ${sectorPicker(sectors, model?.sectorIds)}
           <div class="tc-hint">Define quais setores podem usar este tipo ao criar tarefas.</div>
         </div>
@@ -128,7 +129,7 @@ function openActivityTypeForm({ model, sectors, onDone }) {
       <button class="tc-btn" id="af-cancel">Cancelar</button>
       <button class="tc-btn tc-btn-primary" id="af-save">${icon('save', 15)} ${isEdit ? 'Salvar' : 'Criar'}</button>
     </div>
-  `, 'tc-create');
+  `, 'tc-create', { labelledBy: 'af-title' });
 
   bindSectorPicker();
   const name = document.getElementById('af-name');
@@ -166,30 +167,30 @@ function openCategoryForm({ model, sectors, types, presetTypeId, onDone }) {
     <div class="tc-topbar">
       <div class="tc-topbar-left">
         <span class="tc-section-icon">${icon('tag', 20)}</span>
-        <span class="tc-section-title">${isEdit ? 'Editar Categoria' : 'Nova Categoria'}</span>
+        <span class="tc-section-title" id="af-title">${isEdit ? 'Editar Categoria' : 'Nova Categoria'}</span>
       </div>
       <div class="tc-topbar-right">
-        <button class="tc-icon-btn" id="af-close" title="Fechar">✕</button>
+        <button class="tc-icon-btn" id="af-close" title="Fechar" aria-label="Fechar">✕</button>
       </div>
     </div>
 
     <div class="tc-body tc-body-single">
       <div class="tc-main">
         <div class="tc-field adm-form-field">
-          <div class="tc-meta-label req">Nome</div>
-          <input type="text" class="tc-input" id="af-name" autocomplete="off"
+          <label class="tc-meta-label req" for="af-name">Nome</label>
+          <input type="text" class="tc-input" id="af-name" autocomplete="off" aria-required="true"
             placeholder="Ex: Preparação" value="${esc(model?.name ?? '')}" />
         </div>
 
         <div class="adm-form-field">
-          <div class="tc-meta-label req">Setores com acesso</div>
+          <div class="tc-meta-label req" id="af-sectors-label">Setores com acesso</div>
           ${sectorPicker(sectors, model?.sectorIds)}
           <div class="tc-hint">A categoria só aparece para usuários dos setores marcados.</div>
         </div>
 
         <div class="tc-field adm-form-field">
-          <div class="tc-meta-label req">Tipo de Atividade</div>
-          <select class="tc-input" id="af-at"></select>
+          <label class="tc-meta-label req" for="af-at">Tipo de Atividade</label>
+          <select class="tc-input" id="af-at" aria-required="true"></select>
           <div class="tc-hint" id="af-at-hint"></div>
         </div>
       </div>
@@ -199,7 +200,7 @@ function openCategoryForm({ model, sectors, types, presetTypeId, onDone }) {
       <button class="tc-btn" id="af-cancel">Cancelar</button>
       <button class="tc-btn tc-btn-primary" id="af-save">${icon('save', 15)} ${isEdit ? 'Salvar' : 'Criar'}</button>
     </div>
-  `, 'tc-create');
+  `, 'tc-create', { labelledBy: 'af-title' });
 
   bindSectorPicker();
 
@@ -462,8 +463,7 @@ export async function initAdmin(container) {
   function renderChrome() {
     const isTypes = tab === 'types';
 
-    container.querySelectorAll('.status-tab').forEach(t =>
-      t.classList.toggle('active', t.dataset.tab === tab));
+    container.querySelectorAll('.status-tab').forEach(t => setPressed(t, t.dataset.tab === tab));
 
     document.getElementById('cnt-types').textContent = types.length;
     document.getElementById('cnt-cats').textContent  = cats.length;
@@ -492,11 +492,12 @@ export async function initAdmin(container) {
 
   function renderSortButtons() {
     const { key, dir } = sort[tab];
-    document.getElementById('adm-sort-buttons').innerHTML = SORT_OPTIONS[tab].map(o => `
-      <button type="button" class="sort-button${o.key === key ? ' active' : ''}" data-sort="${o.key}"
+    const el = document.getElementById('adm-sort-buttons');
+    keepFocus(el, () => { el.innerHTML = SORT_OPTIONS[tab].map(o => `
+      <button type="button" class="sort-button${o.key === key ? ' active' : ''}" data-sort="${o.key}" aria-pressed="${o.key === key}"
         title="${o.key === key ? 'Clique para inverter a ordem' : `Ordenar por ${esc(o.label)}`}">
         ${esc(o.label)}${o.key === key ? (dir === 1 ? ' ↑' : ' ↓') : ''}
-      </button>`).join('');
+      </button>`).join(''); }, 'sort');
   }
 
   function updateClearButton() {
@@ -520,10 +521,10 @@ export async function initAdmin(container) {
   container.innerHTML = `
     <div class="tasks-toolbar adm-toolbar">
       <div class="status-tabs">
-        <button class="status-tab active" data-tab="types">
+        <button type="button" class="status-tab active" data-tab="types" aria-pressed="true">
           Tipos de Atividade <span class="badge badge-count" id="cnt-types">0</span>
         </button>
-        <button class="status-tab" data-tab="cats">
+        <button type="button" class="status-tab" data-tab="cats" aria-pressed="false">
           Categorias <span class="badge badge-count" id="cnt-cats">0</span>
         </button>
       </div>
@@ -533,7 +534,7 @@ export async function initAdmin(container) {
           <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
           </svg>
-          <input type="text" class="search-input" id="search-input" placeholder="Buscar..." />
+          <input type="text" class="search-input" id="search-input" placeholder="Buscar..." aria-label="Buscar" />
         </div>
         <button class="btn btn-primary btn-sm" id="adm-new">
           ${icon('plus', 15)} <span id="adm-new-label">Novo Tipo</span>
@@ -544,9 +545,9 @@ export async function initAdmin(container) {
     <div class="tasks-sort-toolbar adm-filter-toolbar">
       <div class="adm-filter-group">
         <span class="tasks-sort-label">Filtrar:</span>
-        <select class="filter-select" id="adm-sector-filter" title="Filtrar por setor"></select>
-        <select class="filter-select hidden" id="adm-type-filter" title="Filtrar por tipo de atividade"></select>
-        <select class="filter-select" id="adm-usage-filter" title="Filtrar por uso em tarefas">
+        <select class="filter-select" id="adm-sector-filter" title="Filtrar por setor" aria-label="Filtrar por setor"></select>
+        <select class="filter-select hidden" id="adm-type-filter" title="Filtrar por tipo de atividade" aria-label="Filtrar por tipo de atividade"></select>
+        <select class="filter-select" id="adm-usage-filter" title="Filtrar por uso em tarefas" aria-label="Filtrar por uso em tarefas">
           <option value="">Uso: todos</option>
           <option value="used">Em uso</option>
           <option value="unused">Sem uso</option>

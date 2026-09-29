@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { initBacklog } from '../../renderer/js/views/backlog.js';
 import { seedWorld, signInAs, makeTask, makeLegacyTask, makeSubtask, USERS } from '../helpers/world.js';
-import { mountAppShell, $, $$, click, typeInto, choose, waitFor, text, modal } from '../helpers/dom.js';
+import { mountAppShell, $, $$, click, typeInto, choose, waitFor, text, modal, unnamedControls } from '../helpers/dom.js';
 
 const bug = makeTask({ id: 'bug', name: 'Bug no login', sectorId: 's1', activityTypeId: 'at-dev', categoryId: 'c-bug', responsibleId: USERS.dev.id, createdById: USERS.dev.id, status: 'Em Andamento' });
 const daily = makeTask({ id: 'daily', name: 'Daily', sectorId: 's1', activityTypeId: 'at-reuniao', categoryId: 'c-alinhamento', responsibleId: null, createdById: USERS.dev2.id });
@@ -149,5 +149,34 @@ describe('Backlog — abrir e criar tarefas', () => {
     await waitFor(() => expect($('#fc-sector')).not.toBeNull());
     expect($('#fc-sector').value).toBe('s3');
     expect($('#fc-at').value).toBe('at-venda');
+  });
+});
+
+describe('Backlog — teclado e leitores de tela', () => {
+  const pressed = el => el.getAttribute('aria-pressed');
+  const sector = id => $(`#bl-sectors .bl-card[data-sector="${id}"]`, main);
+
+  it('setor, tipo e "Sem responsável" anunciam o que está selecionado', async () => {
+    await openAs(USERS.dev);
+    click(sector('s1'));
+    expect(pressed(sector('s1'))).toBe('true');
+    expect($$('#bl-sectors .bl-card', main).filter(c => pressed(c) === 'true')).toHaveLength(1);
+
+    const types = $$('#bl-types .bl-card', main);
+    expect(types.map(pressed).every(p => p === 'false')).toBe(true);   // nenhum tipo escolhido ainda
+    click(types[1]);
+    const nowPressed = $$('#bl-types .bl-card', main).filter(c => pressed(c) === 'true');
+    expect(nowPressed.map(c => c.dataset.type)).toEqual([types[1].dataset.type]);
+
+    const noResp = $('#bl-no-resp', main);
+    expect(pressed(noResp)).toBe('false');
+    click(noResp);
+    expect(pressed(noResp)).toBe('true');
+  });
+
+  it('busca e filtro de status têm nome acessível', async () => {
+    await openAs(USERS.dev);
+    click(sector('s1'));
+    expect(unnamedControls(main)).toEqual([]);
   });
 });

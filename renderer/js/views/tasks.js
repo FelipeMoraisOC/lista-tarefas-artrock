@@ -3,6 +3,7 @@
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
 import { formatDate, responsibleOf } from '../utils.js';
 import { renderTaskCards } from '../components/task-card.js';
+import { setPressed } from '../components/a11y.js';
 
 export async function initTasks(container) {
   let activeStatus = 'Todas';
@@ -118,16 +119,16 @@ export async function initTasks(container) {
   container.innerHTML = `
     <div class="tasks-toolbar">
       <div class="status-tabs">
-        <button class="status-tab active" data-status="Todas">
+        <button type="button" class="status-tab active" data-status="Todas" aria-pressed="true">
           Todas <span class="badge badge-count" id="cnt-all">${cnt.Todas}</span>
         </button>
-        <button class="status-tab" data-status="Em Andamento">
+        <button type="button" class="status-tab" data-status="Em Andamento" aria-pressed="false">
           Em Andamento <span class="badge badge-status-em-andamento" id="cnt-prog">${cnt['Em Andamento']}</span>
         </button>
-        <button class="status-tab" data-status="Para Fazer">
+        <button type="button" class="status-tab" data-status="Para Fazer" aria-pressed="false">
           Para Fazer <span class="badge badge-count" id="cnt-todo">${cnt['Para Fazer']}</span>
         </button>
-        <button class="status-tab" data-status="Concluído">
+        <button type="button" class="status-tab" data-status="Concluído" aria-pressed="false">
           Concluído <span class="badge badge-status-concluído" id="cnt-done">${cnt['Concluído']}</span>
         </button>
       </div>
@@ -137,9 +138,9 @@ export async function initTasks(container) {
           <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
           </svg>
-          <input type="text" class="search-input" id="search-input" placeholder="Buscar tarefa..." />
+          <input type="text" class="search-input" id="search-input" placeholder="Buscar tarefa..." aria-label="Buscar tarefa" />
         </div>
-        <select class="filter-select" id="filter-col">
+        <select class="filter-select" id="filter-col" aria-label="Buscar por" title="Buscar por">
           <option value="name">Nome</option>
           <option value="categoryId">Categoria</option>
           <option value="activityTypeId">Tipo Atividade</option>
@@ -152,10 +153,10 @@ export async function initTasks(container) {
     <div class="tasks-sort-toolbar">
       <span class="tasks-sort-label">Ordenar por:</span>
       <div class="tasks-sort-buttons">
-        <button type="button" class="sort-button active" data-sort="status">Status</button>
-        <button type="button" class="sort-button" data-sort="priority">Prioridade</button>
-        <button type="button" class="sort-button" data-sort="deadline">Prazo</button>
-        <button type="button" class="sort-button" data-sort="requesterId">Solicitante</button>
+        <button type="button" class="sort-button active" data-sort="status" aria-pressed="true">Status</button>
+        <button type="button" class="sort-button" data-sort="priority" aria-pressed="false">Prioridade</button>
+        <button type="button" class="sort-button" data-sort="deadline" aria-pressed="false">Prazo</button>
+        <button type="button" class="sort-button" data-sort="requesterId" aria-pressed="false">Solicitante</button>
       </div>
       <div class="sort-help-wrap">
         <button type="button" class="sort-help-button" aria-label="Explicação dos ícones do card" aria-expanded="false">?</button>
@@ -181,14 +182,13 @@ export async function initTasks(container) {
   // Tab switching
   container.querySelectorAll('.status-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      container.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
+      container.querySelectorAll('.status-tab').forEach(t => setPressed(t, t === tab));
       activeStatus = tab.dataset.status;
       if (activeStatus !== 'Todas' && sortBy === 'status') {
         sortBy = 'priority';
       }
       container.querySelectorAll('.sort-button').forEach(sortButton => {
-        sortButton.classList.toggle('active', sortButton.dataset.sort === sortBy);
+        setPressed(sortButton, sortButton.dataset.sort === sortBy);
         sortButton.classList.toggle('hidden', sortButton.dataset.sort === 'status' && activeStatus !== 'Todas');
       });
       renderGrid();
@@ -199,9 +199,7 @@ export async function initTasks(container) {
     sortButton.addEventListener('click', () => {
       if (sortButton.disabled) return;
       sortBy = sortButton.dataset.sort;
-      container.querySelectorAll('.sort-button').forEach(button =>
-        button.classList.toggle('active', button === sortButton)
-      );
+      container.querySelectorAll('.sort-button').forEach(button => setPressed(button, button === sortButton));
       renderGrid();
     });
   });

@@ -4,6 +4,7 @@
 // (Dashboard, Minhas Tarefas, Tarefas Delegadas).
 
 import { formatDate, isOverdue } from '../utils.js';
+import { keepFocus } from './a11y.js';
 
 const DESCRIPTION_DRAFT_PREFIX = 'artrock:task-description-draft:';
 
@@ -87,7 +88,8 @@ export function renderTaskCards(container, tasks, { onOpen, emptyHtml, ...ctx } 
     return;
   }
 
-  container.innerHTML = tasks.map(t => taskCard(t, ctx)).join('');
+  // Lista refeita (ex.: depois de salvar no detalhe): o foco volta ao mesmo card
+  keepFocus(container, () => { container.innerHTML = tasks.map(t => taskCard(t, ctx)).join(''); });
 
   if (!onOpen) return;
   container.querySelectorAll('.task-card').forEach(card => {

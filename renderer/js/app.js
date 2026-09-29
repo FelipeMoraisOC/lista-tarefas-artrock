@@ -9,6 +9,7 @@ import { initBacklog } from './views/backlog.js';
 import { initSettings } from './views/settings.js';
 import { openCreateTask } from './views/modals.js';
 import { initTaskTimer, teardownTaskTimer, flushTaskTimer } from './components/task-timer.js';
+import { initSidebarToggle } from './components/sidebar-toggle.js';
 import { getCurrentUser, isAdmin, bust } from './store.js';
 import { onAuthChange, loginWithEmail, resetPassword } from './auth.js';
 import { showToast } from './utils.js';
@@ -41,9 +42,12 @@ async function navigate(raw) {
 
   // Title + active nav
   document.getElementById('page-title').textContent = route.title;
-  document.querySelectorAll('.nav-item').forEach(el =>
-    el.classList.toggle('active', el.dataset.page === page)
-  );
+  document.querySelectorAll('.nav-item').forEach(el => {
+    const current = el.dataset.page === page;
+    el.classList.toggle('active', current);
+    if (current) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
+  });
 
   // Spinner
   const content = document.getElementById('main-content');
@@ -169,6 +173,7 @@ async function boot() {
 
   await initUserInfo();
   startTaskTimer();
+  initSidebarToggle();
 
   // "Nova Tarefa" button
   document.getElementById('btn-new-task').addEventListener('click', () => {

@@ -4,7 +4,7 @@
 // importado), sobre o HTML real do renderer/index.html.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { mountAppShell, $, $$, click, typeInto, settle, text, lastToast } from '../helpers/dom.js';
+import { mountAppShell, $, $$, click, typeInto, settle, text, lastToast, pressKey } from '../helpers/dom.js';
 
 let ctx = null;
 let windowListeners = [];
@@ -224,5 +224,61 @@ describe('App — sessão e fechamento', () => {
     expect($('#login-screen').style.display).toBe('flex');
     expect($('#app').style.display).toBe('none');
     expect(visible('#task-timer')).toBe(false);
+  });
+});
+
+describe('Menu lateral — leitores de tela', () => {
+  it('marca a página atual com aria-current', async () => {
+    await bootApp({ signedInAs: 'u-dev' });
+    await goTo('tasks');
+    expect($('.nav-item[data-page="tasks"]').getAttribute('aria-current')).toBe('page');
+    expect($('.nav-item[data-page="dashboard"]').hasAttribute('aria-current')).toBe(false);
+    await goTo('backlog');
+    expect($('.nav-item[data-page="backlog"]').getAttribute('aria-current')).toBe('page');
+    expect($('.nav-item[data-page="tasks"]').hasAttribute('aria-current')).toBe(false);
+  });
+});
+
+// Com zoom alto (janela estreita), o menu vira uma coluna de ícones e o botão
+// "Mostrar menu" abre o menu completo por cima do conteúdo. (O CSS decide quando
+// o botão aparece; aqui testamos o comportamento.)
+describe('Menu lateral compacto — botão de menu', () => {
+  const app = () => $('#app');
+  const btn = () => $('#btn-menu');
+  const isOpen = () => app().classList.contains('sidebar-open');
+
+  it('abre e fecha o menu, anunciando o estado; ao abrir, o foco vai para o menu', async () => {
+    await bootApp({ signedInAs: 'u-dev' });
+    expect(btn().getAttribute('aria-controls')).toBe('sidebar');
+    expect(btn().getAttribute('aria-expanded')).toBe('false');
+    expect(btn().getAttribute('aria-label')).toBe('Mostrar menu');
+
+    click(btn());
+    expect(isOpen()).toBe(true);
+    expect(btn().getAttribute('aria-expanded')).toBe('true');
+    expect(btn().getAttribute('aria-label')).toBe('Ocultar menu');
+    expect($('#sidebar').contains(document.activeElement)).toBe(true);
+
+    click(btn());
+    expect(isOpen()).toBe(false);
+  });
+
+  it('Esc fecha o menu aberto e devolve o foco ao botão', async () => {
+    await bootApp({ signedInAs: 'u-dev' });
+    click(btn());
+    pressKey(document.activeElement, 'Escape');
+    expect(isOpen()).toBe(false);
+    expect(document.activeElement).toBe(btn());
+  });
+
+  it('escolher uma página fecha o menu; clicar fora dele também', async () => {
+    await bootApp({ signedInAs: 'u-dev' });
+    click(btn());
+    click($('.nav-item[data-page="tasks"]'));
+    expect(isOpen()).toBe(false);
+
+    click(btn());
+    click($('#main-content'));
+    expect(isOpen()).toBe(false);
   });
 });

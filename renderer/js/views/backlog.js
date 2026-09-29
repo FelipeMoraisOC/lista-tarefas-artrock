@@ -10,6 +10,7 @@ import {
 } from '../store.js';
 import { openCreateTask, openTaskDetail, esc, icon } from './modals.js';
 import { formatDate, isOverdue, responsibleOf } from '../utils.js';
+import { setPressed, keepFocus } from '../components/a11y.js';
 
 const NO_SECTOR = '__none';
 const ALL_TYPES = '__all';
@@ -114,13 +115,14 @@ export async function initBacklog(container) {
 
   function renderSectors() {
     const list = sectorList();
-    document.getElementById('bl-sectors').innerHTML = list.length
+    const el = document.getElementById('bl-sectors');
+    keepFocus(el, () => { el.innerHTML = list.length
       ? list.map(s => `
-          <button type="button" class="bl-card${s.id === selSector ? ' active' : ''}" data-sector="${s.id}">
+          <button type="button" class="bl-card${s.id === selSector ? ' active' : ''}" data-sector="${s.id}" aria-pressed="${s.id === selSector}">
             <span class="bl-card-name">${esc(s.name)}</span>
             <span class="badge badge-count">${s.count}</span>
           </button>`).join('')
-      : '<div class="bl-empty">Nenhum setor disponível.</div>';
+      : '<div class="bl-empty">Nenhum setor disponível.</div>'; }, 'sector');
   }
 
   function renderTypes() {
@@ -132,13 +134,14 @@ export async function initBacklog(container) {
     document.getElementById('bl-types-title').textContent = `Tipos de atividade — ${sector?.name ?? ''}`;
 
     const list = typeList();
-    document.getElementById('bl-types').innerHTML = list.length > 1 || list[0].count
+    const el = document.getElementById('bl-types');
+    keepFocus(el, () => { el.innerHTML = list.length > 1 || list[0].count
       ? list.map(t => `
-          <button type="button" class="bl-card bl-card-type${t.id === selType ? ' active' : ''}${!t.count ? ' is-empty' : ''}" data-type="${t.id}">
+          <button type="button" class="bl-card bl-card-type${t.id === selType ? ' active' : ''}${!t.count ? ' is-empty' : ''}" data-type="${t.id}" aria-pressed="${t.id === selType}">
             <span class="bl-card-name">${esc(t.name)}</span>
             <span class="bl-card-count">${t.count} ${t.count === 1 ? 'tarefa' : 'tarefas'}</span>
           </button>`).join('')
-      : '<div class="bl-empty">Nenhum tipo de atividade disponível para este setor.</div>';
+      : '<div class="bl-empty">Nenhum tipo de atividade disponível para este setor.</div>'; }, 'type');
   }
 
   function taskRow(t, isSub = false) {
@@ -150,12 +153,13 @@ export async function initBacklog(container) {
     const ov   = isOverdue(t.deadline, t.status);
 
     return `
-      <tr class="bl-row${isSub ? ' bl-row-sub' : ''}${t.status === 'Concluído' ? ' is-done' : ''}" data-id="${t.id}" tabindex="0">
-        <td class="bl-col-task">
+      <tr class="bl-row${isSub ? ' bl-row-sub' : ''}${t.status === 'Concluído' ? ' is-done' : ''}" data-id="${t.id}" tabindex="0" role="row">
+        <td class="bl-col-task" role="cell">
           <div class="bl-task-cell">
             ${isSub ? '<span class="bl-sub-mark">↳</span>'
               : subs.length
-                ? `<button type="button" class="bl-expand${open ? ' open' : ''}" data-expand="${t.id}" title="${open ? 'Ocultar' : 'Mostrar'} sub-tarefas">
+                ? `<button type="button" class="bl-expand${open ? ' open' : ''}" data-expand="${t.id}" id="bl-exp-${t.id}"
+                     title="${open ? 'Ocultar' : 'Mostrar'} sub-tarefas" aria-label="${open ? 'Ocultar' : 'Mostrar'} sub-tarefas de ${esc(t.name)}" aria-expanded="${open}">
                      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
                    </button>`
                 : '<span class="bl-expand-spacer"></span>'}
@@ -163,12 +167,12 @@ export async function initBacklog(container) {
             ${subs.length ? `<span class="bl-sub-count" title="Sub-tarefas">${subs.length}</span>` : ''}
           </div>
         </td>
-        <td>${person(resp)}</td>
-        <td>${cat ? `<span class="badge badge-cat">${esc(cat.name)}</span>` : '<span class="text-muted text-small">—</span>'}</td>
-        <td>${by ? person(by) : '<span class="text-muted text-small">—</span>'}</td>
-        <td>${t.priority ? `<span class="badge badge-priority-${slug(t.priority)}">${esc(t.priority)}</span>` : ''}</td>
-        <td><span class="badge badge-status-${slug(t.status)}">${esc(t.status)}</span></td>
-        <td class="bl-col-date${ov ? ' overdue' : ''}">${ov ? '⏰ ' : ''}${formatDate(t.deadline)}</td>
+        <td class="bl-col-resp" role="cell">${person(resp)}</td>
+        <td class="bl-col-cat" role="cell">${cat ? `<span class="badge badge-cat">${esc(cat.name)}</span>` : '<span class="text-muted text-small">—</span>'}</td>
+        <td class="bl-col-by" role="cell">${by ? person(by) : '<span class="text-muted text-small">—</span>'}</td>
+        <td class="bl-col-prio" role="cell">${t.priority ? `<span class="badge badge-priority-${slug(t.priority)}">${esc(t.priority)}</span>` : ''}</td>
+        <td class="bl-col-status" role="cell"><span class="badge badge-status-${slug(t.status)}">${esc(t.status)}</span></td>
+        <td class="bl-col-date${ov ? ' overdue' : ''}" role="cell">${ov ? '⏰ ' : ''}${formatDate(t.deadline)}</td>
       </tr>
       ${open ? subs.map(s => taskRow(s, true)).join('') : ''}`;
   }
@@ -181,9 +185,10 @@ export async function initBacklog(container) {
     const rows = filteredTasks();
     document.getElementById('bl-count').textContent = rows.length;
 
-    document.getElementById('bl-table-body').innerHTML = rows.length
+    const body = document.getElementById('bl-table-body');
+    keepFocus(body, () => { body.innerHTML = rows.length
       ? rows.map(t => taskRow(t)).join('')
-      : `<tr><td colspan="7"><div class="bl-empty">Nenhuma tarefa encontrada.</div></td></tr>`;
+      : `<tr role="row"><td colspan="7" role="cell"><div class="bl-empty">Nenhuma tarefa encontrada.</div></td></tr>`; });
   }
 
   function renderAll() {
@@ -217,31 +222,31 @@ export async function initBacklog(container) {
           <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
           </svg>
-          <input type="text" class="search-input" id="bl-search" placeholder="Pesquisar tarefa..." />
+          <input type="text" class="search-input" id="bl-search" placeholder="Pesquisar tarefa..." aria-label="Pesquisar tarefa" />
         </div>
-        <select class="filter-select" id="bl-status" title="Filtrar por status">
+        <select class="filter-select" id="bl-status" title="Filtrar por status" aria-label="Filtrar por status">
           <option value="">Todos os status</option>
           ${STATUS_OPTS.map(s => `<option value="${s}">${s}</option>`).join('')}
         </select>
-        <button type="button" class="sort-button" id="bl-no-resp" title="Mostrar apenas tarefas sem responsável">Sem responsável</button>
+        <button type="button" class="sort-button" id="bl-no-resp" title="Mostrar apenas tarefas sem responsável" aria-pressed="false">Sem responsável</button>
         <span class="bl-toolbar-count">Tarefas: <strong id="bl-count">0</strong></span>
         <button class="btn btn-primary btn-sm" id="bl-new">${icon('plus', 15)} Nova Tarefa</button>
       </div>
 
       <div class="bl-table-wrap">
-        <table class="adm-table bl-table">
-          <thead>
-            <tr>
-              <th>Tarefa</th>
-              <th>Responsável</th>
-              <th>Categoria</th>
-              <th>Criado por</th>
-              <th>Prioridade</th>
-              <th>Status</th>
-              <th>Prazo</th>
+        <table class="adm-table bl-table" role="table" aria-label="Tarefas do backlog">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th class="bl-col-task" role="columnheader">Tarefa</th>
+              <th class="bl-col-resp" role="columnheader">Responsável</th>
+              <th class="bl-col-cat" role="columnheader">Categoria</th>
+              <th class="bl-col-by" role="columnheader">Criado por</th>
+              <th class="bl-col-prio" role="columnheader">Prioridade</th>
+              <th class="bl-col-status" role="columnheader">Status</th>
+              <th class="bl-col-date" role="columnheader">Prazo</th>
             </tr>
           </thead>
-          <tbody id="bl-table-body"></tbody>
+          <tbody id="bl-table-body" role="rowgroup"></tbody>
         </table>
       </div>
     </div>
@@ -280,6 +285,7 @@ export async function initBacklog(container) {
     if (row) openTask(row.dataset.id);
   });
   body.addEventListener('keydown', e => {
+    if (e.target.closest('button')) return;      // o botão de expandir cuida da própria tecla
     const row = e.target.closest('tr[data-id]');
     if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openTask(row.dataset.id); }
   });
@@ -288,7 +294,7 @@ export async function initBacklog(container) {
   document.getElementById('bl-status').addEventListener('change', e => { statusFilter = e.target.value; renderTable(); });
   document.getElementById('bl-no-resp').addEventListener('click', e => {
     onlyNoResp = !onlyNoResp;
-    e.currentTarget.classList.toggle('active', onlyNoResp);
+    setPressed(e.currentTarget, onlyNoResp);
     renderTable();
   });
 

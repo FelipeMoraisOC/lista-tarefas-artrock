@@ -27,7 +27,7 @@ export function createTaskFilter({ tasks, users, activityTypes, categories, onCh
   function dateSection(id, label) {
     return `
       <div class="tf-section" data-section="${id}">
-        <button type="button" class="tf-section-toggle" data-toggle="${id}">
+        <button type="button" class="tf-section-toggle" data-toggle="${id}" aria-expanded="false" aria-controls="tf-body-${id}">
           <svg class="tf-chevron" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
             <path d="M7 10l5 5 5-5z"/>
           </svg>
@@ -35,12 +35,12 @@ export function createTaskFilter({ tasks, users, activityTypes, categories, onCh
         </button>
         <div class="tf-section-body tf-collapsed" id="tf-body-${id}">
           <div class="tf-date-row">
-            <label class="tf-date-label">De</label>
-            <input type="date" class="tf-date-input" id="tf-${id}-from" />
+            <label class="tf-date-label" for="tf-${id}-from">De</label>
+            <input type="date" class="tf-date-input" id="tf-${id}-from" aria-label="${label}: de" />
           </div>
           <div class="tf-date-row">
-            <label class="tf-date-label">Até</label>
-            <input type="date" class="tf-date-input" id="tf-${id}-to" />
+            <label class="tf-date-label" for="tf-${id}-to">Até</label>
+            <input type="date" class="tf-date-input" id="tf-${id}-to" aria-label="${label}: até" />
           </div>
         </div>
       </div>`;
@@ -49,7 +49,7 @@ export function createTaskFilter({ tasks, users, activityTypes, categories, onCh
   function selectSection(id, label, options) {
     return `
       <div class="tf-field">
-        <label class="tf-field-label">${label}</label>
+        <label class="tf-field-label" for="tf-${id}">${label}</label>
         <select class="tf-select" id="tf-${id}">
           <option value="">Todos</option>
           ${options.map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')}
@@ -73,7 +73,7 @@ export function createTaskFilter({ tasks, users, activityTypes, categories, onCh
       ${selectSection('activityType', 'Tipo de Atividade', relevantATs.map(a => ({ value: a.id, label: a.name })))}
 
       <div class="tf-field" id="tf-category-wrap">
-        <label class="tf-field-label">Categoria</label>
+        <label class="tf-field-label" for="tf-category">Categoria</label>
         <select class="tf-select" id="tf-category" disabled>
           <option value="">Selecione um tipo de atividade</option>
         </select>
@@ -90,8 +90,9 @@ export function createTaskFilter({ tasks, users, activityTypes, categories, onCh
   el.querySelectorAll('.tf-section-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const body = el.querySelector(`#tf-body-${btn.dataset.toggle}`);
-      body.classList.toggle('tf-collapsed');
-      btn.classList.toggle('tf-open');
+      const open = body.classList.toggle('tf-collapsed') === false;
+      btn.classList.toggle('tf-open', open);
+      btn.setAttribute('aria-expanded', String(open));
     });
   });
 

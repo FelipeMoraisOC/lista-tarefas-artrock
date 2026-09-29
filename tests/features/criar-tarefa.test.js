@@ -6,6 +6,7 @@ import { openCreateTask } from '../../renderer/js/views/modals.js';
 import { seedWorld, signInAs, makeTask, USERS } from '../helpers/world.js';
 import {
   mountAppShell, $, $$, click, typeInto, choose, settle, text, modal, lastToast, optionValues,
+  pressKey, accessibleName, unnamedControls,
 } from '../helpers/dom.js';
 
 const me = USERS.dev;
@@ -196,5 +197,93 @@ describe('Criar tarefa pelo Backlog (qualquer setor, responsável opcional)', ()
     await save();
     expect($('#fc-sector').closest('.tc-field').classList.contains('has-error')).toBe(true);
     expect(created()).toHaveLength(0);
+  });
+});
+
+describe('Criar tarefa — teclado e leitores de tela', () => {
+  const focused = () => document.activeElement;
+  const search = () => $('#resp-search');
+  const options = () => $$('.tc-resp-list [role="option"]');
+  const selectedName = () => text($('.tc-resp-list [aria-selected="true"] .tc-resp-user-name'));
+
+  it('o diálogo tem nome e todos os campos têm rótulo; a prioridade se chama Prioridade', async () => {
+    await openModal();
+    expect(accessibleName(modal())).toBe('Nova tarefa');
+    expect(unnamedControls(modal())).toEqual([]);
+    expect(accessibleName($('#fc-priority'))).toBe('Prioridade');
+    expect(accessibleName($('#fc-name'))).toBe('Nome da tarefa');
+    expect(accessibleName($('#mc-close'))).toBe('Fechar');
+  });
+
+  it('sub-tarefa: o diálogo se chama Nova sub-tarefa', async () => {
+    const parent = makeTask({ id: 'pai', name: 'Tarefa pai' });
+    seedWorld({ tasks: [parent] });
+    await openModal('pai', { activityTypeId: 'at-dev', categoryId: 'c-bug' });
+    expect(accessibleName(modal())).toBe('Nova sub-tarefa');
+  });
+
+  it('seletor de responsável abre com o foco no filtro, e digitar mantém o foco lá', async () => {
+    await openModal();
+    click($('#mc-pick-resp'));
+    expect(focused()).toBe(search());
+    expect($('.tc-resp-list').getAttribute('role')).toBe('listbox');
+    expect(accessibleName($('.tc-resp-card'))).toBe('Escolher Responsável');
+
+    const input = search();
+    typeInto(input, 'bru');
+    expect(options().map(o => text($('.tc-resp-user-name', o)))).toEqual(['Bruno TI']);
+    expect(search()).toBe(input);            // o campo não é recriado a cada tecla
+    expect(focused()).toBe(input);
+  });
+
+  it('setas escolhem a pessoa e Enter confirma', async () => {
+    await openModal();
+    click($('#mc-pick-resp'));
+    pressKey(search(), 'ArrowDown');
+    expect(selectedName()).toBe(USERS.dev.name);
+    pressKey(search(), 'ArrowDown');
+    expect(selectedName()).toBe(USERS.dev2.name);
+    const active = $('.tc-resp-list [aria-selected="true"]');
+    expect(search().getAttribute('aria-activedescendant')).toBe(active.id);
+
+    pressKey(search(), 'Enter');
+    await settle();
+    expect($('.tc-resp-modal')).toBeNull();
+    expect(text($('#mc-pick-resp'))).toBe(USERS.dev2.name);
+    expect(focused()).toBe($('#mc-pick-resp'));
+
+    fillRequired();
+    await save();
+    expect(created()[0].responsibleId).toBe(USERS.dev2.id);
+  });
+
+  it('Esc fecha só o seletor e devolve o foco ao botão Responsável', async () => {
+    await openModal();
+    click($('#mc-pick-resp'));
+    pressKey(search(), 'Escape');
+    expect($('.tc-resp-modal')).toBeNull();
+    expect(modal()).not.toBeNull();
+    expect(focused()).toBe($('#mc-pick-resp'));
+  });
+
+  it('Tab circula dentro do seletor', async () => {
+    await openModal();
+    click($('#mc-pick-resp'));
+    $('#resp-confirm').focus();
+    pressKey($('#resp-confirm'), 'Tab');
+    expect(focused()).toBe($('#resp-close'));
+    pressKey($('#resp-close'), 'Tab', { shiftKey: true });
+    expect(focused()).toBe($('#resp-confirm'));
+  });
+});
+
+describe('Criar tarefa — filtrar e confirmar pelo teclado', () => {
+  it('digitar o nome destaca o primeiro resultado e Enter confirma', async () => {
+    await openModal();
+    click($('#mc-pick-resp'));
+    typeInto($('#resp-search'), 'carla');
+    pressKey($('#resp-search'), 'Enter');
+    await settle();
+    expect(text($('#mc-pick-resp'))).toBe(USERS.sales.name);
   });
 });

@@ -62,51 +62,51 @@ function openUserForm({ model, sectors, onDone }) {
     <div class="tc-topbar">
       <div class="tc-topbar-left">
         <span class="tc-section-icon">${icon('plus', 20)}</span>
-        <span class="tc-section-title">${isEdit ? 'Editar Usuário' : 'Novo Usuário'}</span>
+        <span class="tc-section-title" id="uf-title">${isEdit ? 'Editar Usuário' : 'Novo Usuário'}</span>
       </div>
       <div class="tc-topbar-right">
-        <button class="tc-icon-btn" id="uf-close" title="Fechar">✕</button>
+        <button class="tc-icon-btn" id="uf-close" title="Fechar" aria-label="Fechar">✕</button>
       </div>
     </div>
 
     <div class="tc-body tc-body-single">
       <div class="tc-main">
         <div class="tc-field adm-form-field">
-          <div class="tc-meta-label req">UID (Firebase Auth)</div>
-          <input type="text" class="tc-input" id="uf-uid" autocomplete="off"
+          <label class="tc-meta-label req" for="uf-uid">UID (Firebase Auth)</label>
+          <input type="text" class="tc-input" id="uf-uid" autocomplete="off" aria-required="true" aria-describedby="uf-uid-hint"
             placeholder="Ex: abc123XYZ..." value="${esc(model?.id ?? '')}"
             ${isEdit ? 'disabled style="opacity:.6;cursor:not-allowed"' : ''} />
-          <div class="tc-hint">O UID do usuário no Firebase Authentication.</div>
+          <div class="tc-hint" id="uf-uid-hint">O UID do usuário no Firebase Authentication.</div>
         </div>
 
         <div class="tc-field adm-form-field">
-          <div class="tc-meta-label req">Email</div>
-          <input type="email" class="tc-input" id="uf-email" autocomplete="off"
+          <label class="tc-meta-label req" for="uf-email">Email</label>
+          <input type="email" class="tc-input" id="uf-email" autocomplete="off" aria-required="true"
             placeholder="usuario@empresa.com" value="${esc(model?.email ?? '')}" />
         </div>
 
         <div class="tc-details-grid" style="margin-bottom:18px">
           <div class="tc-field adm-form-field">
-            <div class="tc-meta-label">Nome</div>
+            <label class="tc-meta-label" for="uf-name">Nome</label>
             <input type="text" class="tc-input" id="uf-name" autocomplete="off"
               placeholder="Ex: João Silva" value="${esc(model?.name ?? '')}" />
           </div>
           <div class="tc-field adm-form-field">
-            <div class="tc-meta-label req">Iniciais</div>
-            <input type="text" class="tc-input" id="uf-initials" autocomplete="off"
+            <label class="tc-meta-label req" for="uf-initials">Iniciais</label>
+            <input type="text" class="tc-input" id="uf-initials" autocomplete="off" aria-required="true"
               maxlength="3" placeholder="Ex: JS" value="${esc(model?.initials ?? '')}"
               style="text-transform:uppercase" />
           </div>
         </div>
 
         <div class="tc-field adm-form-field">
-          <div class="tc-meta-label">Cargo / Função</div>
+          <label class="tc-meta-label" for="uf-role">Cargo / Função</label>
           <input type="text" class="tc-input" id="uf-role" autocomplete="off"
             placeholder="Ex: Desenvolvedor" value="${esc(model?.role ?? '')}" />
         </div>
 
         <div class="adm-form-field">
-          <div class="tc-meta-label req">Setores</div>
+          <div class="tc-meta-label req" id="af-sectors-label">Setores</div>
           ${sectorPicker(sectors, model?.sectorIds ?? ['ALL'])}
           <div class="tc-hint">Define quais setores o usuário pertence.</div>
         </div>
@@ -117,7 +117,7 @@ function openUserForm({ model, sectors, onDone }) {
       <button class="tc-btn" id="uf-cancel">Cancelar</button>
       <button class="tc-btn tc-btn-primary" id="uf-save">${icon('save', 15)} ${isEdit ? 'Salvar' : 'Criar Usuário'}</button>
     </div>
-  `, 'tc-create');
+  `, 'tc-create', { labelledBy: 'uf-title' });
 
   bindSectorPicker();
 
@@ -225,7 +225,7 @@ export async function initUsers(container) {
   container.innerHTML = `
     <div class="tasks-toolbar adm-toolbar">
       <div class="status-tabs">
-        <button class="status-tab active" disabled>
+        <button type="button" class="status-tab active" aria-pressed="true" disabled>
           Usuários <span class="badge badge-count" id="cnt-users">${users.length}</span>
         </button>
       </div>
@@ -235,7 +235,7 @@ export async function initUsers(container) {
           <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
           </svg>
-          <input type="text" class="search-input" id="users-search" placeholder="Buscar por nome ou email..." />
+          <input type="text" class="search-input" id="users-search" placeholder="Buscar por nome ou email..." aria-label="Buscar por nome ou email" />
         </div>
         <button class="btn btn-primary btn-sm" id="users-new">
           ${icon('plus', 15)} Novo Usuário

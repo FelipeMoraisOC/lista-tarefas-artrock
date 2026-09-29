@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { __doc } from 'firebase/firestore';
 import { initUsers } from '../../renderer/js/views/users.js';
 import { seedWorld, signInAs, USERS } from '../helpers/world.js';
-import { mountAppShell, $, $$, click, typeInto, check, settle, text, modal, lastToast } from '../helpers/dom.js';
+import { mountAppShell, $, $$, click, typeInto, check, settle, text, modal, lastToast, accessibleName, unnamedControls } from '../helpers/dom.js';
 
 let main;
 
@@ -81,5 +81,17 @@ describe('Gerenciar Usuários', () => {
     check($('#uf-sectors input[value="ALL"]'));
     expect(s1.checked).toBe(false);
     expect(s1.disabled).toBe(true);
+  });
+});
+
+describe('Usuários — leitores de tela', () => {
+  it('formulário de usuário: diálogo com nome e campos com rótulo', async () => {
+    await openAs(USERS.admin);
+    click($('#users-new', main));
+    await settle();
+    expect(accessibleName(modal())).toBe('Novo Usuário');
+    expect(unnamedControls(modal())).toEqual([]);
+    expect(accessibleName($('#uf-uid'))).toBe('UID (Firebase Auth)');
+    expect(accessibleName($('#uf-close'))).toBe('Fechar');
   });
 });

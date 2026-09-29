@@ -6,6 +6,7 @@
 import { getTasks, getUsers, getCategories, getActivityTypes, getCurrentUser } from '../store.js';
 import { createTaskFilter, applyFilters } from '../components/task-filter.js';
 import { renderTaskCards } from '../components/task-card.js';
+import { setPressed } from '../components/a11y.js';
 
 export async function initDelegated(container) {
   const [allTasks, users, categories, activityTypes, currentUser] = await Promise.all([
@@ -93,9 +94,9 @@ export async function initDelegated(container) {
           <div class="deleg-sort">
             <span class="tasks-sort-label">Ordenar por:</span>
             <div class="tasks-sort-buttons">
-              <button type="button" class="sort-button active" data-sort="deadline">Prazo</button>
-              <button type="button" class="sort-button" data-sort="end">Conclusão</button>
-              <button type="button" class="sort-button" data-sort="start">Início</button>
+              <button type="button" class="sort-button active" data-sort="deadline" aria-pressed="true">Prazo</button>
+              <button type="button" class="sort-button" data-sort="end" aria-pressed="false">Conclusão</button>
+              <button type="button" class="sort-button" data-sort="start" aria-pressed="false">Início</button>
             </div>
             <button type="button" class="sort-button sort-dir-btn" id="deleg-dir" title="Alternar direção">
               <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
@@ -141,9 +142,7 @@ export async function initDelegated(container) {
   container.querySelectorAll('.deleg-sort .sort-button[data-sort]').forEach(btn => {
     btn.addEventListener('click', () => {
       sortBy = btn.dataset.sort;
-      container.querySelectorAll('.deleg-sort .sort-button[data-sort]').forEach(b =>
-        b.classList.toggle('active', b === btn)
-      );
+      container.querySelectorAll('.deleg-sort .sort-button[data-sort]').forEach(b => setPressed(b, b === btn));
       renderList();
     });
   });

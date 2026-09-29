@@ -22,6 +22,7 @@
 
 import { getTasks, patchTask } from '../store.js';
 import { showToast, formatDuration, responsibleOf, todayISO } from '../utils.js';
+import { keepFocus } from './a11y.js';
 
 const TICK_MS        = 1000;
 const BEAT_SAVE_MS   = 10 * 1000;      // grava o batimento no localStorage a cada 10s (não a cada tick)
@@ -78,6 +79,7 @@ let lastBeatSave = 0;
 let drag         = null;
 let staleDom     = false;     // dados mudaram durante um arraste → renderizar ao soltar
 let menu         = null;
+let menuFor      = null;   // tarefa do menu aberto (o foco volta para ela)
 let savedHooks   = {};      // para reativar o timer pelas Configurações
 
 const panel    = () => document.getElementById('task-timer');
@@ -295,6 +297,24 @@ function completeTask(taskId) {
   });
 }
 
+// Concluir exige algum tempo registrado (arrastar ou menu)
+function canComplete(task) {
+  if (task && displaySec(task) >= 1) return true;
+  showToast('Registre algum tempo nesta tarefa antes de concluí-la.', 'error');
+  return false;
+}
+
+// Concluir pelo menu: o foco segue para a tarefa seguinte
+function completeFromMenu(taskId) {
+  if (!canComplete(tasks.find(t => t.id === taskId))) return;
+  const ids  = tasks.map(t => t.id);
+  const at   = ids.indexOf(taskId);
+  const next = ids[at + 1] ?? ids[at - 1];
+  completeTask(taskId);
+  const root = panel();
+  (root?.querySelector(`.tt-item[data-id="${next}"]`) ?? root?.querySelector('#tt-toggle'))?.focus();
+}
+
 function undoComplete(taskId, index, prev) {
   if (!user) return;
   const saved = send(taskId, prev);     // as horas continuam as já gravadas
@@ -391,11 +411,11 @@ function render() {
   if (!user) { root.innerHTML = ''; return; }
 
   const has = tasks.length > 0;
-  root.innerHTML = `
+  keepFocus(root, () => { root.innerHTML = `
     <div class="tt-done-zone">${icon('check')} Solte para concluir</div>
 
-    <div class="tt-list" role="list"
-         title="Arraste para o topo para trocar a tarefa ativa, ou acima da lista para concluir. Botão direito: adicionar tempo.">
+    <div class="tt-list"${has ? ' role="list"' : ''}
+         title="Arraste para o topo para trocar a tarefa ativa, ou acima da lista para concluir. Botão direito: adicionar tempo ou concluir. Teclado: Alt+↑/↓ muda a ordem; tecla Menu abre as opções.">
       ${has ? tasks.map((t, i) => `
         <div class="tt-item${i === 0 ? ' is-top' : ''}${isActive(t.id) ? ' is-running' : ''}"
              data-id="${t.id}" role="listitem" tabindex="0" title="${esc(t.name)}">
@@ -418,7 +438,7 @@ function render() {
         ${icon('eye')}
       </button>
     </div>
-  `;
+  `; });
 }
 
 // Único trabalho por segundo: trocar o texto do tempo da tarefa ativa.
@@ -499,9 +519,7 @@ function onPointerUp(e) {
   const stale = endDrag();
 
   if (d.toDone) {
-    const task = tasks.find(t => t.id === d.id);
-    if (!task || displaySec(task) < 1) {
-      showToast('Registre algum tempo nesta tarefa antes de concluí-la.', 'error');
+    if (!canComplete(tasks.find(t => t.id === d.id))) {
       render();
       return;
     }
@@ -541,25 +559,37 @@ function onContextMenu(e) {
   closeMenu();
 
   const id = item.dataset.id;
+  menuFor = id;
   menu = document.createElement('div');
   menu.className = 'tt-menu';
   menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', `Opções de "${tasks.find(t => t.id === id)?.name ?? ''}"`);
   menu.innerHTML = `
     <div class="tt-menu-title">Adicionar tempo</div>
     ${ADD_MINUTES.map(m => `<button type="button" class="tt-menu-item" role="menuitem" data-add="${m}">+ ${m} min</button>`).join('')}
     <div class="tt-menu-sep"></div>
+    <button type="button" class="tt-menu-item" role="menuitem" data-complete>Concluir tarefa</button>
     <button type="button" class="tt-menu-item" role="menuitem" data-open>Abrir detalhes</button>`;
   document.body.appendChild(menu);
 
+  // Pelo teclado (tecla Menu, Shift+F10) não há posição do mouse: abre junto da tarefa
+  let x = e.clientX;
+  let y = e.clientY;
+  if (!x && !y) {
+    const ir = item.getBoundingClientRect();
+    x = ir.left + 12;
+    y = ir.bottom;
+  }
   const r = menu.getBoundingClientRect();
-  menu.style.left = `${Math.min(e.clientX, window.innerWidth - r.width - 8)}px`;
-  menu.style.top  = `${Math.min(e.clientY, window.innerHeight - r.height - 8)}px`;
+  menu.style.left = `${Math.min(x, window.innerWidth - r.width - 8)}px`;
+  menu.style.top  = `${Math.min(y, window.innerHeight - r.height - 8)}px`;
 
   menu.addEventListener('click', ev => {
     const btn = ev.target.closest('button');
     if (!btn) return;
-    closeMenu();
+    closeMenu({ restoreFocus: true });
     if (btn.dataset.add) addTime(id, Number(btn.dataset.add));
+    else if ('complete' in btn.dataset) completeFromMenu(id);
     else openTask(id);
   });
   menu.querySelector('button')?.focus();
@@ -573,14 +603,28 @@ function onOutsideMenu(e) {
   if (menu && !menu.contains(e.target)) closeMenu();
 }
 
+// Esc/Tab fecham (o foco volta para a tarefa); ↑/↓ circulam entre as opções
 function onMenuKey(e) {
-  if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); }
+  if (e.key === 'Escape' || e.key === 'Tab') {
+    e.preventDefault();
+    e.stopPropagation();
+    closeMenu({ restoreFocus: true });
+    return;
+  }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault();
+  const items = [...menu.querySelectorAll('.tt-menu-item')];
+  const at    = items.indexOf(document.activeElement);
+  const step  = e.key === 'ArrowDown' ? 1 : -1;
+  items[(at + step + items.length) % items.length].focus();
 }
 
-function closeMenu() {
+// `restoreFocus`: devolve o foco à tarefa do menu (Esc, Tab, ou depois de escolher uma opção)
+function closeMenu({ restoreFocus = false } = {}) {
   if (!menu) return;
   menu.remove();
   menu = null;
+  if (restoreFocus) panel()?.querySelector(`.tt-item[data-id="${menuFor}"]`)?.focus();
   document.removeEventListener('pointerdown', onOutsideMenu, true);
   document.removeEventListener('keydown', onMenuKey, true);
   window.removeEventListener('blur', closeMenu);
@@ -604,9 +648,26 @@ function bindPanel() {
     if (e.target.closest('#tt-view') && tasks[0]) openTask(tasks[0].id);
   });
 
+  // Teclado: Enter abre; ↑/↓ andam entre as tarefas; Alt+↑/↓ mudam a ordem (o topo é a ativa)
   root.addEventListener('keydown', e => {
     const item = e.target.closest('.tt-item');
-    if (item && e.key === 'Enter') openTask(item.dataset.id);
+    if (!item) return;
+    if (e.key === 'Enter') { openTask(item.dataset.id); return; }
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+
+    const step = e.key === 'ArrowUp' ? -1 : 1;
+    if (!e.altKey) {
+      const items = [...root.querySelectorAll('.tt-item')];
+      items[items.indexOf(item) + step]?.focus();
+      return;
+    }
+    const ids  = tasks.map(t => t.id);
+    const from = ids.indexOf(item.dataset.id);
+    const to   = from + step;
+    if (from === -1 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    applyOrder(ids);                    // se o topo mudou, grava a anterior e troca
   });
 }
 

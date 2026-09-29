@@ -283,7 +283,7 @@ describe('Timer — botão direito (adicionar tempo)', () => {
   it('o menu também abre os detalhes e fecha com Esc', async () => {
     await startWith();
     rightClick('B');
-    expect($$('.tt-menu-item').map(text)).toEqual(['+ 5 min', '+ 10 min', '+ 15 min', '+ 30 min', 'Abrir detalhes']);
+    expect($$('.tt-menu-item').map(text)).toEqual(['+ 5 min', '+ 10 min', '+ 15 min', '+ 30 min', 'Concluir tarefa', 'Abrir detalhes']);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect($('.tt-menu')).toBeNull();
 
@@ -543,5 +543,87 @@ describe('Timer — ativar/desativar (Configurações)', () => {
     expect($('#task-timer').classList.contains('hidden')).toBe(false);
     expect(items()).toEqual(['A', 'B']);
     expect(runningId()).toBeNull();
+  });
+});
+
+describe('Timer — teclado e leitores de tela', () => {
+  const item = id => $(`#task-timer .tt-item[data-id="${id}"]`);
+  const focused = () => document.activeElement;
+  const key = (el, k, extra = {}) =>
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...extra }));
+
+  it('sem tarefas, o painel não se anuncia como lista (vazia)', async () => {
+    await startWith([]);
+    expect($('#task-timer .tt-list').hasAttribute('role')).toBe(false);
+  });
+
+  it('com tarefas, o painel é uma lista', async () => {
+    await startWith();
+    expect($('#task-timer .tt-list').getAttribute('role')).toBe('list');
+  });
+
+  it('↑/↓ movem o foco entre as tarefas', async () => {
+    await startWith();
+    item('A').focus();
+    key(item('A'), 'ArrowDown');
+    expect(focused()).toBe(item('B'));
+    key(item('B'), 'ArrowUp');
+    expect(focused()).toBe(item('A'));
+  });
+
+  it('Alt+↑ / Alt+↓ mudam a ordem (o topo vira a ativa) sem perder o foco', async () => {
+    await startWith();
+    item('B').focus();
+    key(item('B'), 'ArrowUp', { altKey: true });
+    expect(items()).toEqual(['B', 'A']);
+    expect($('#task-timer .tt-item.is-top').dataset.id).toBe('B');
+    expect(focused()).toBe(item('B'));
+
+    key(item('B'), 'ArrowDown', { altKey: true });
+    expect(items()).toEqual(['A', 'B']);
+    expect(focused()).toBe(item('B'));
+  });
+
+  it('o menu abre pelo teclado: setas navegam e Esc devolve o foco à tarefa', async () => {
+    await startWith();
+    item('B').focus();
+    item('B').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 0, clientY: 0 }));
+    const menuItems = $$('.tt-menu .tt-menu-item');
+    expect(focused()).toBe(menuItems[0]);
+
+    key(menuItems[0], 'ArrowDown');
+    expect(focused()).toBe(menuItems[1]);
+    key(menuItems[1], 'ArrowUp');
+    expect(focused()).toBe(menuItems[0]);
+    key(menuItems[0], 'ArrowUp');
+    expect(focused()).toBe(menuItems.at(-1));      // circula
+
+    key(focused(), 'Escape');
+    expect($('.tt-menu')).toBeNull();
+    expect(focused()).toBe(item('B'));
+  });
+
+  it('"Concluir tarefa" no menu conclui com Desfazer, e o foco segue para a próxima', async () => {
+    await startWith();
+    item('A').focus();
+    rightClick('A');
+    click($('.tt-menu [data-complete]'));
+    await flush();
+
+    expect(__doc('tasks', 'A').status).toBe('Concluído');
+    expect(items()).toEqual(['B']);
+    expect(lastToast()).toContain('"Tarefa A" concluída.');
+    expect(lastToast()).toContain('Desfazer');
+    expect(focused()).toBe(item('B'));
+  });
+
+  it('"Concluir tarefa" sem tempo registrado avisa e não conclui', async () => {
+    await startWith();
+    rightClick('B');
+    click($('.tt-menu [data-complete]'));
+    await flush();
+    expect(lastToast()).toContain('Registre algum tempo nesta tarefa antes de concluí-la.');
+    expect(items()).toEqual(['A', 'B']);
+    expect(__doc('tasks', 'B').status).toBe('Em Andamento');
   });
 });

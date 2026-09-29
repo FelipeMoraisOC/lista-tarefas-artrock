@@ -8,6 +8,7 @@ import { createTask } from '../../renderer/js/store.js';
 import { seedWorld, signInAs, makeTask, makeLegacyTask, makeSubtask, USERS } from '../helpers/world.js';
 import {
   mountAppShell, $, $$, click, typeInto, choose, check, settle, waitFor, text, modal, lastToast, optionValues, pressKey,
+  accessibleName, unnamedControls,
 } from '../helpers/dom.js';
 
 let onSave;
@@ -315,5 +316,150 @@ describe('Detalhe da tarefa — sub-tarefas, Backlog e exclusão', () => {
     expect(__all('tasks').map(t => t.id)).toEqual(['fica']);
     expect(lastToast()).toContain('Tarefa excluída!');
     expect(onSave).toHaveBeenCalled();
+  });
+});
+
+describe('Detalhe da tarefa — teclado e leitores de tela', () => {
+  const app = () => document.getElementById('app');
+  const focused = () => document.activeElement;
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const hiddenInline = el => !!el.closest('[style*="display:none"], [style*="display: none"], [hidden]');
+  const focusables = () => $$(FOCUSABLE, modal()).filter(el => !hiddenInline(el));
+
+  it('abre como diálogo com o nome da tarefa e o foco vai para dentro dele', async () => {
+    await openAs(USERS.dev, makeTask({ name: 'Migrar banco' }));
+    expect(modal().getAttribute('role')).toBe('dialog');
+    expect(modal().getAttribute('aria-modal')).toBe('true');
+    expect(accessibleName(modal())).toBe('Migrar banco');
+    expect(modal().contains(focused())).toBe(true);
+  });
+
+  it('o app por trás fica inerte enquanto o detalhe está aberto', async () => {
+    await openAs(USERS.dev, makeTask());
+    expect(app().hasAttribute('inert')).toBe(true);
+    click($('#dd-close'));
+    await settle();
+    expect(app().hasAttribute('inert')).toBe(false);
+  });
+
+  it('Tab no último controle volta ao primeiro; Shift+Tab no primeiro vai ao último', async () => {
+    await openAs(USERS.dev, makeTask());
+    const list = focusables();
+    const first = list[0];
+    const last = list.at(-1);
+
+    last.focus();
+    pressKey(last, 'Tab');
+    expect(focused()).toBe(first);
+
+    // (sair da caixa de comentário esconde o "Salvar": o último controle é recalculado)
+    const lastNow = focusables().at(-1);
+    pressKey(first, 'Tab', { shiftKey: true });
+    expect(focused()).toBe(lastNow);
+  });
+
+  it('se o foco escapar para o app por trás, ele volta para o diálogo', async () => {
+    await openAs(USERS.dev, makeTask());
+    $('.nav-item[data-page="tasks"]').focus();
+    expect(modal().contains(focused())).toBe(true);
+  });
+
+  it('fechar devolve o foco a quem abriu o detalhe', async () => {
+    const task = makeTask();
+    seedWorld({ tasks: [task] });
+    signInAs(USERS.dev);
+    mountAppShell();
+    const opener = $('#btn-new-task');
+    opener.focus();
+    await openTaskDetail(task, vi.fn());
+    expect(focused()).not.toBe(opener);
+
+    click($('#dd-close'));
+    await settle();
+    expect(focused()).toBe(opener);
+  });
+
+  it('abrir e fechar várias vezes não acumula ouvintes de teclado', async () => {
+    const task = makeTask();
+    await openAs(USERS.dev, task);
+    click($('#dd-close'));
+    await settle();
+
+    const add = vi.spyOn(document, 'addEventListener');
+    const remove = vi.spyOn(document, 'removeEventListener');
+    for (let i = 0; i < 3; i++) {
+      await openTaskDetail(task, vi.fn());
+      click($('#dd-close'));
+      await settle();
+    }
+    const keydowns = spy => spy.mock.calls.filter(([type]) => type === 'keydown').length;
+    expect(keydowns(add)).toBe(keydowns(remove));
+    add.mockRestore();
+    remove.mockRestore();
+  });
+
+  it('Esc na lista de responsável fecha só a lista, não o detalhe', async () => {
+    await openAs(USERS.dev, makeTask());
+    click($('#dd-resp-container .ss-trigger'));
+    const search = $('#dd-resp-container .ss-search');
+    pressKey(search, 'Escape');
+    expect($('#dd-resp-container .ss-wrapper').classList.contains('ss-open')).toBe(false);
+    expect(modal()).not.toBeNull();
+  });
+
+  it('todo campo tem nome acessível', async () => {
+    await openAs(USERS.dev, makeTask());
+    expect(unnamedControls(modal())).toEqual([]);
+    expect(accessibleName($('#dd-priority'))).toBe('Prioridade');
+    expect(accessibleName($('#dd-deadline'))).toBe('Data Entrega');
+    expect(accessibleName($('#dd-close'))).toBe('Fechar');
+  });
+
+  it('o nome da tarefa pode ser editado pelo teclado', async () => {
+    await openAs(USERS.dev, makeTask({ name: 'Antigo' }));
+    const view = $('#dd-name-view');
+    expect(view.getAttribute('role')).toBe('button');
+    expect(view.tabIndex).toBe(0);
+
+    pressKey(view, 'Enter');
+    expect($('#dd-name-input').style.display).toBe('block');
+    expect(focused()).toBe($('#dd-name-input'));
+  });
+
+  it('Tab do comentário vazio chega ao botão Salvar sem ele sumir; sair da caixa esconde', async () => {
+    await openAs(USERS.dev, makeTask());
+    const actions = $('#dd-comment-actions');
+    $('#dd-comment').focus();
+    expect(actions.style.display).toBe('flex');
+
+    $('#dd-comment-save').focus();                // Tab: do campo para o botão
+    expect(actions.style.display).toBe('flex');
+    expect(focused()).toBe($('#dd-comment-save'));
+
+    $('#dd-activity-toggle').focus();             // saiu da caixa de comentário
+    expect(actions.style.display).toBe('none');
+  });
+
+  it('se um controle sumir no meio do Tab e o foco cair no <body>, ele volta ao diálogo', async () => {
+    vi.useFakeTimers();
+    try {
+      await openAs(USERS.dev, makeTask());
+      const btn = $('#dd-activity-toggle');
+      btn.focus();
+      pressKey(btn, 'Tab');
+      btn.blur();                                  // simula o foco perdido
+      expect(focused()).toBe(document.body);
+      vi.runAllTimers();
+      expect(modal().contains(focused())).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('em modo visualização o nome não se oferece para edição', async () => {
+    await openAs(USERS.sales, makeTask({ createdById: USERS.dev.id, responsibleId: USERS.dev.id }));
+    expect(isReadOnly()).toBe(true);
+    expect($('#dd-name-view').hasAttribute('tabindex')).toBe(false);
+    expect($('#dd-name-view').hasAttribute('role')).toBe(false);
   });
 });

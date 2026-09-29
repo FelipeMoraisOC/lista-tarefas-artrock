@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { initDelegated } from '../../renderer/js/views/delegated.js';
 import { seedWorld, signInAs, makeTask, makeSubtask, USERS } from '../helpers/world.js';
-import { mountAppShell, $, $$, click, choose, settle, waitFor, text } from '../helpers/dom.js';
+import { mountAppShell, $, $$, click, choose, settle, waitFor, text, unnamedControls } from '../helpers/dom.js';
 
 const me = USERS.dev;
 let main;
@@ -94,5 +94,18 @@ describe('Tarefas Delegadas', () => {
     expect($('.sort-help-button', main).getAttribute('aria-expanded')).toBe('true');
     click(document.body);
     expect(wrap.classList.contains('open')).toBe(false);
+  });
+});
+
+describe('Tarefas Delegadas — teclado e leitores de tela', () => {
+  it('filtros têm rótulos e a ordenação anuncia a ativa', async () => {
+    await open([makeTask({ name: 'Delegada', createdById: me.id, responsibleId: USERS.sales.id })]);
+    expect(unnamedControls(main)).toEqual([]);
+
+    const sort = key => $(`.deleg-sort [data-sort="${key}"]`, main);
+    expect(sort('deadline').getAttribute('aria-pressed')).toBe('true');
+    click(sort('end'));
+    expect(sort('end').getAttribute('aria-pressed')).toBe('true');
+    expect(sort('deadline').getAttribute('aria-pressed')).toBe('false');
   });
 });

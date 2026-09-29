@@ -95,6 +95,63 @@ describe('Gráfico de barras — sem dados e rótulos', () => {
   });
 });
 
+describe('Gráficos — cores e leitura', () => {
+  // Paleta categórica validada (dataviz, ordem fixa): 1ª cor azul, nunca vermelho de alerta
+  const PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+  const mine = (categoryId, hoursInvested, extra = {}) =>
+    makeTask({ categoryId, hoursInvested, responsibleId: 'u-dev', endDate: '2026-09-26', ...extra });
+
+  const pieColorOf = (inst, name) => {
+    const { labels, datasets } = inst.config.data;
+    return datasets[0].backgroundColor[labels.indexOf(name)];
+  };
+  const barColorOf = (inst, name) => inst.config.data.datasets.find(d => d.label === name).backgroundColor;
+
+  it('cada categoria tem a mesma cor nos dois gráficos, da paleta validada', () => {
+    vi.useFakeTimers({ now: new Date(2026, 8, 26, 12), toFake: ['Date'] });
+    window.Chart = FakeChart;
+    // ordem diferente das tarefas em cada lista: a cor não pode depender dela
+    renderPie(canvas(), [mine('c-feature', 3), mine('c-bug', 2)], CATEGORIES, 'u-dev');
+    renderBar(canvas(), [mine('c-bug', 2), mine('c-feature', 3)], CATEGORIES, 'u-dev');
+    const [pie, bar] = FakeChart.instances;
+
+    for (const name of ['Correção de bug', 'Nova funcionalidade']) {
+      expect(PALETTE).toContain(pieColorOf(pie, name));
+      expect(barColorOf(bar, name)).toBe(pieColorOf(pie, name));
+    }
+    expect(pieColorOf(pie, 'Correção de bug')).toBe(PALETTE[0]);   // ordem estável: a das categorias
+    vi.useRealTimers();
+  });
+
+  it('mais de 8 categorias: as de menos horas se juntam em "Outras"', () => {
+    window.Chart = FakeChart;
+    const cats = Array.from({ length: 9 }, (_, i) => ({ id: `x${i}`, name: `Cat ${i}`, activityTypeId: 'at-dev', sectorIds: ['s1'] }));
+    renderPie(canvas(), cats.map((c, i) => mine(c.id, 10 - i)), cats, 'u-dev');
+    const { labels, datasets } = FakeChart.instances[0].config.data;
+    expect(labels).toHaveLength(8);
+    expect(labels.at(-1)).toBe('Outras');
+    expect(datasets[0].data.at(-1)).toBe(2 + 3);   // Cat 7 (3h) + Cat 8 (2h)
+  });
+
+  it('a legenda da pizza mostra as horas (rótulo visível, não só no tooltip)', () => {
+    window.Chart = FakeChart;
+    renderPie(canvas(), [mine('c-bug', 1.5), mine('c-feature', 3)], CATEGORIES, 'u-dev');
+    const { data, options } = FakeChart.instances[0].config;
+    const items = options.plugins.legend.labels.generateLabels({ data, getDataVisibility: () => true });
+    expect(items.map(i => i.text)).toEqual(['Correção de bug — 1,5h', 'Nova funcionalidade — 3h']);
+    expect(items[0].fillStyle).toBe(data.datasets[0].backgroundColor[0]);
+  });
+
+  it('textos dos gráficos usam a cor de texto legível, não cinza-claro', () => {
+    window.Chart = FakeChart;
+    renderBar(canvas(), [mine('c-bug', 2)], CATEGORIES, 'u-dev');
+    const { options } = FakeChart.instances[0].config;
+    expect(options.scales.x.ticks.color).toBe('#5E5E5E');
+    expect(options.scales.y.ticks.color).toBe('#5E5E5E');
+    expect(options.plugins.legend.labels.color).toBe('#4A4A4A');
+  });
+});
+
 describe('Markdown', () => {
   it('texto vazio vira string vazia', () => {
     expect(renderMd('')).toBe('');
@@ -127,6 +184,18 @@ describe('Editor de descrição (EasyMDE)', () => {
     expect(ed.opts).toMatchObject({ placeholder: 'Descreva...', minHeight: '120px', spellChecker: false });
     destroyAllEditors();
     expect(toTextArea).toHaveBeenCalledTimes(2);
+  });
+
+  it('o campo de digitação do editor herda o nome acessível do textarea original', () => {
+    const input = document.createElement('textarea');           // o que o CodeMirror cria
+    window.EasyMDE = vi.fn(function () {
+      this.codemirror = { getInputField: () => input };
+      this.toTextArea = vi.fn();
+    });
+    const original = document.createElement('textarea');
+    original.setAttribute('aria-label', 'Descrição');
+    initEditor(original);
+    expect(input.getAttribute('aria-label')).toBe('Descrição');
   });
 
   it('a pré-visualização usa o Markdown quando disponível; destroyEditor fecha só um', () => {

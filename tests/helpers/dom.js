@@ -59,7 +59,25 @@ export function pressKey(el, key, extra = {}) {
   el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...extra }));
 }
 
-export const toastTexts = () => $$('#toast-container .toast').map(t => t.textContent.replace(/\s+/g, ' ').trim());
+// Nome acessível simplificado (o que um leitor de tela anunciaria):
+// aria-labelledby > aria-label > <label for> / <label> em volta.
+export function accessibleName(el) {
+  if (!el) return '';
+  const by = el.getAttribute('aria-labelledby');
+  if (by) return by.split(/\s+/).map(id => text(document.getElementById(id))).join(' ').trim();
+  const aria = el.getAttribute('aria-label');
+  if (aria) return aria.trim();
+  if (el.labels?.length) return text(el.labels[0]);
+  return '';
+}
+
+// Campos de formulário sem nome acessível dentro de `root` (ids/classes para a mensagem de erro).
+export const unnamedControls = root =>
+  $$('input:not([type="hidden"]), select, textarea', root)
+    .filter(el => !accessibleName(el))
+    .map(el => el.id ? `#${el.id}` : `.${el.className}`);
+
+export const toastTexts = () =>$$('#toast-container .toast').map(t => t.textContent.replace(/\s+/g, ' ').trim());
 export const lastToast  = () => toastTexts().at(-1) ?? '';
 export const modal      = () => document.getElementById('_modal');
 export const text       = el => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();

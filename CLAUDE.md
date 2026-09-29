@@ -67,7 +67,9 @@ lista-tarefas-artrock/
             ├── editor.js      # Wrapper EasyMDE
             ├── searchable-select.js  # Dropdown com busca
             ├── task-filter.js # Painel de filtros reutilizável
-            └── task-timer.js  # Timer das tarefas em andamento (menu lateral)
+            ├── task-timer.js  # Timer das tarefas em andamento (menu lateral)
+            ├── a11y.js        # Acessibilidade: foco em diálogos (trapTab), setPressed, keepFocus
+            └── sidebar-toggle.js # Botão ☰ do menu compacto (zoom alto / janela estreita)
 ```
 
 ---
@@ -140,7 +142,11 @@ comments [{id, userId, text, createdAt, isSystem?}]
 - Cache em memória (`_cache`) com `bust(key)` após escritas.
 - IDs gerados com `generateId(prefix)` → `{prefix}-{timestamp}-{random}`.
 - Toasts via `showToast(msg, type)` para feedback ao usuário.
-- Modais criados dinamicamente no DOM, destruídos ao fechar.
+- Modais criados dinamicamente no DOM, destruídos ao fechar. Todo modal abre por `openShell(html, cls, { label | labelledBy })`: ele dá `role="dialog"` e nome, deixa `#app` `inert`, prende o Tab, fecha com Esc e devolve o foco a quem abriu. Sobreposições dentro de um modal (ex.: seletor de responsável) tratam Esc/Tab e chamam `stopPropagation()`.
+- Cores por papel (`:root` do `style.css`, bloco "Papéis de cor"): texto `--text/--text-2/--text-muted`, ação `--action`, foco `--focus` (azul — vermelho é só erro: `--danger*`), seleção `--selected`, contorno de campo `--border-input` (≥ 3:1), status em pílula preenchida `--st-*`, prioridade em pílula contornada `--pr-*`. Use esses tokens, não hex soltos; todo texto ≥ 4.5:1. O modal de tarefa (`.tc`) é claro, mapeado nos mesmos tokens. Gráficos: paleta categórica validada em `components/chart.js` (a cor segue a categoria).
+- Tipografia por papel (`:root`, bloco "Tipografia"): `--fs-meta` (14,2px, o menor permitido), `--fs-ui`, `--fs-body`, `--fs-heading`, `--fs-title`, `--fs-title-lg`, `--fs-display`; famílias `--font-sans` / `--font-mono`. Use sempre `font-size: var(--fs-*)` — nada de valores soltos nem texto abaixo de 14px (exceção: iniciais em avatares). Rótulos em caixa normal (sem `text-transform: uppercase`), salvo a marca "TAREFAS". A raiz é `html { font-size: 18.2px }`.
+- Zoom e janela pequena (fim do `style.css`, seção "ADAPTAÇÃO"): alvo = notebook 1366×768 com zoom de 150% (911×512) e 200% (683×384), sem rolagem lateral. As telas usam container queries (`#main-content` é o container `main`; a tabela do Backlog é `bltable`). Abaixo de 800px o menu vira coluna de ícones (timer compacto) e o botão `#btn-menu` abre o menu completo por cima (`components/sidebar-toggle.js`, classe `#app.sidebar-open`). O detalhe da tarefa fica em uma coluna abaixo de 1024px.
+- Acessibilidade (ver `components/a11y.js`): campos com `<label for>` ou `aria-label`; botões de alternância (abas, ordenação, filtros) mudam com `setPressed()` (classe `.active` + `aria-pressed`); listas refeitas com `innerHTML` usam `keepFocus()` para não perder o foco do teclado.
 - Editores EasyMDE destruídos via `destroyAllEditors()` ao fechar modais.
 - Offline persistence habilitado via `enableIndexedDbPersistence`.
 - Escritas em tarefas disparam `window` event `tasks-changed` (store.js) — o timer escuta para recarregar.

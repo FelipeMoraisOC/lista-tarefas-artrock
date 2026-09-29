@@ -4,6 +4,36 @@ Histórico de novidades e melhorias do aplicativo.
 
 ---
 
+## [1.1.2] — 2026-09-28
+
+### Melhorias
+
+- **Usar o aplicativo pelo teclado** — As janelas de tarefa agora recebem o cursor assim que abrem, a tecla Tab não "escapa" mais para o que está atrás delas, e ao fechar (com Esc ou no ✕) você volta exatamente para onde estava.
+- **Escolher o responsável pelo teclado** — Na janela "Escolher Responsável", digite parte do nome, use as setas ↑ e ↓ e aperte Enter para confirmar. O mesmo vale para o campo Responsável nos detalhes da tarefa.
+- **Timer pelo teclado** — Com uma tarefa do timer selecionada, as setas ↑ e ↓ passam de uma tarefa para outra, e Alt + ↑/↓ mudam a ordem (a do topo é a que conta o tempo). A tecla Menu do teclado (ou Shift+F10) abre as opções da tarefa.
+- **Concluir pelo menu do timer** — Clique com o botão direito numa tarefa do timer e escolha "Concluir tarefa". Antes, só dava para concluir arrastando.
+- **Editar o nome da tarefa pelo teclado** — Nos detalhes, chegue ao nome com Tab e aperte Enter para editar.
+- **Programas que leem a tela em voz alta** — Todos os campos dos formulários agora têm nome, as janelas se apresentam com o nome da tarefa, e as abas e botões de ordenação avisam qual está selecionado.
+- **Textos mais fáceis de ler** — As etiquetas de status e prioridade, os textos em cinza e os botões verdes ficaram mais escuros e com mais contraste. Isso ajuda principalmente quem enxerga com dificuldade.
+- **Janela da tarefa clara** — As janelas de criar e de ver uma tarefa agora são claras, como o resto do aplicativo. Os olhos não precisam mais se readaptar do claro para o escuro a cada tarefa aberta.
+- **Cada cor com um significado** — Status aparece como etiqueta preenchida e prioridade como etiqueta com contorno, para não confundir as duas. A categoria ficou neutra (antes era azul, como "Em Andamento"). O campo em que você está digitando fica com borda azul; vermelho agora aparece só em erros, atrasos e prioridade Alta.
+- **Campos com borda visível** — Os campos de texto, datas e listas têm contorno mais forte, fácil de enxergar.
+- **Letras maiores e mais organizadas** — Nenhum texto do aplicativo fica mais abaixo de um tamanho confortável de leitura. Etiquetas, datas, o timer e os rótulos dos campos cresceram, e os tamanhos foram padronizados para que títulos, textos e detalhes se diferenciem de relance.
+- **Menos letras maiúsculas** — Rótulos como "Criado por", "Setores" e os títulos das colunas agora aparecem em letras normais, que são mais fáceis de ler do que TUDO EM MAIÚSCULAS.
+- **Funciona bem com zoom** — Quem aumenta o tamanho da tela (Ctrl +) agora vê tudo sem cortes. Com zoom alto, o menu lateral vira uma coluna de ícones que mantém o timer à vista; o botão ☰ no topo abre o menu completo. O Dashboard, as Tarefas Delegadas e as abas se reorganizam para caber, e os detalhes da tarefa passam a rolar como uma página só.
+- **Backlog cabe na tela** — A tabela do Backlog não corta mais a coluna de Prazo. Em janelas mais estreitas, as colunas menos importantes ("Criado por" e depois "Categoria") saem da tabela — elas continuam nos detalhes da tarefa — e, bem estreito, cada tarefa aparece como um cartão.
+- **Descrição mais confortável de ler** — As linhas da descrição da tarefa ficaram mais curtas e espaçadas, e o campo de edição da descrição usa a mesma letra do resto do aplicativo.
+- **Gráficos do Dashboard** — Cada categoria tem a mesma cor nos dois gráficos, a legenda da pizza mostra as horas de cada categoria, e as cores foram escolhidas para serem diferenciadas também por quem tem daltonismo. Com muitas categorias, as menores aparecem juntas em "Outras".
+
+### Correções
+
+- **Nome errado de um campo** — Ao criar uma tarefa, o campo de prioridade aparecia como "Etiquetas". Agora aparece como "Prioridade", igual aos detalhes da tarefa.
+- **Botão Salvar do comentário** — Ao passar com Tab pela caixa de comentário vazia, o botão Salvar sumia e o cursor se perdia. Corrigido.
+- **Esc na lista de responsável** — Apertar Esc na lista de responsável, nos detalhes, fechava a tarefa inteira. Agora fecha só a lista.
+- **Sub-tarefas no Backlog pelo teclado** — Apertar Enter na setinha de sub-tarefas abria a tarefa em vez de mostrar as sub-tarefas. Corrigido.
+
+---
+
 ## [1.1.1] — 2026-09-26
 
 ### Correções

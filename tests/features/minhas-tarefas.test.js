@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { initTasks } from '../../renderer/js/views/tasks.js';
 import { seedWorld, signInAs, makeTask, USERS } from '../helpers/world.js';
-import { mountAppShell, $, $$, click, typeInto, choose, waitFor, text, modal } from '../helpers/dom.js';
+import { mountAppShell, $, $$, click, typeInto, choose, waitFor, text, modal, pressKey, unnamedControls } from '../helpers/dom.js';
 
 const me = USERS.dev;
 let main;
@@ -108,5 +108,44 @@ describe('Minhas Tarefas', () => {
     expect($('.sort-help-wrap', main).classList.contains('open')).toBe(true);
     click(document.body);
     expect($('.sort-help-wrap', main).classList.contains('open')).toBe(false);
+  });
+});
+
+describe('Minhas Tarefas — teclado e leitores de tela', () => {
+  const pressed = el => el.getAttribute('aria-pressed');
+
+  it('abas e ordenação anunciam qual está ativa', async () => {
+    await open(TASKS());
+    expect(pressed(tab('Todas'))).toBe('true');
+    expect(pressed(tab('Concluído'))).toBe('false');
+    expect(pressed(sortBtn('status'))).toBe('true');
+
+    click(tab('Concluído'));
+    expect(pressed(tab('Todas'))).toBe('false');
+    expect(pressed(tab('Concluído'))).toBe('true');
+    expect(pressed(sortBtn('priority'))).toBe('true');   // "Status" some fora de "Todas"
+    expect(pressed(sortBtn('status'))).toBe('false');
+
+    click(sortBtn('deadline'));
+    expect(pressed(sortBtn('deadline'))).toBe('true');
+    expect(pressed(sortBtn('priority'))).toBe('false');
+  });
+
+  it('busca e coluna de busca têm nome acessível', async () => {
+    await open(TASKS());
+    expect(unnamedControls(main)).toEqual([]);
+  });
+
+  it('fechar o detalhe devolve o foco ao card, mesmo depois de a lista ser refeita', async () => {
+    await open(TASKS());
+    const card = $$('#tasks-grid .task-card', main).find(c => text(c).includes('Deploy'));
+    const id = card.dataset.id;
+    card.focus();
+    pressKey(card, 'Enter');
+    await waitFor(() => expect(modal()).not.toBeNull());
+
+    click($('#dd-close'));
+    await waitFor(() => expect(document.activeElement?.dataset.id).toBe(id));
+    expect(document.activeElement.classList.contains('task-card')).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import { initAdmin } from '../../renderer/js/views/admin.js';
 import { seedWorld, signInAs, makeTask, USERS } from '../helpers/world.js';
 import {
   mountAppShell, $, $$, click, typeInto, choose, check, settle, text, modal, lastToast, optionValues,
+  accessibleName, unnamedControls,
 } from '../helpers/dom.js';
 
 let main;
@@ -202,5 +203,34 @@ describe('Administração — Categorias', () => {
     check(sectorBox('s1'), false);
     check(sectorBox('s3'));
     expect($('#af-at').value).toBe('');
+  });
+});
+
+describe('Administração — leitores de tela', () => {
+  it('formulários de tipo e categoria: diálogo com nome e campos com rótulo', async () => {
+    await openAs(USERS.admin);
+    click($('#adm-new', main));
+    await settle();
+    expect(accessibleName(modal())).toBe('Novo Tipo de Atividade');
+    expect(unnamedControls(modal())).toEqual([]);
+    expect(accessibleName($('#af-close'))).toBe('Fechar');
+    click($('#af-close'));
+
+    await goToTab('cats');
+    click($('#adm-new', main));
+    await settle();
+    expect(accessibleName(modal())).toBe('Nova Categoria');
+    expect(unnamedControls(modal())).toEqual([]);
+  });
+
+  it('filtros e abas da tela anunciam nome e estado', async () => {
+    await openAs(USERS.admin);
+    expect(unnamedControls(main)).toEqual([]);
+    const tab = t => $(`.status-tab[data-tab="${t}"]`, main);
+    expect(tab('types').getAttribute('aria-pressed')).toBe('true');
+    await goToTab('cats');
+    expect(tab('cats').getAttribute('aria-pressed')).toBe('true');
+    expect(tab('types').getAttribute('aria-pressed')).toBe('false');
+    expect(sortBtn('name').getAttribute('aria-pressed')).toBe('true');
   });
 });

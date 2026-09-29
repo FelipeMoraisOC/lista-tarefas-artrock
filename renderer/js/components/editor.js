@@ -127,6 +127,11 @@ export function initEditor(textarea, opts = {}) {
     },
   });
 
+  // O CodeMirror digita num textarea próprio: ele herda o nome do original (leitores de tela)
+  const label = textarea.getAttribute('aria-label');
+  const input = editor.codemirror?.getInputField?.();
+  if (label && input) input.setAttribute('aria-label', label);
+
   _instances.push(editor);
   return editor;
 }
