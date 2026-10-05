@@ -1753,6 +1753,17 @@ input[type="range"].completion-slider.is-complete {
   color: var(--tc-text);
 }
 
+/* Tipo de atividade: negrito só nos do setor do usuário (os de TODOS ficam normais) */
+#fc-at option,
+#dd-at option {
+  font-weight: 400;
+}
+
+#fc-at option.opt-own-sector,
+#dd-at option.opt-own-sector {
+  font-weight: 700;
+}
+
 .tc-icon-btn {
   width: 30px;
   height: 30px;

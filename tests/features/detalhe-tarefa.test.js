@@ -37,6 +37,13 @@ async function rename(value) {
 }
 
 describe('Detalhe da tarefa — visualizar e editar', () => {
+  it('tipos de atividade do meu setor ficam em negrito; os de TODOS, não', async () => {
+    await openAs(USERS.dev, makeTask({ activityTypeId: 'at-dev', categoryId: 'c-bug', createdById: USERS.dev.id }));
+    const own = id => $(`#dd-at option[value="${id}"]`).classList.contains('opt-own-sector');
+    expect(own('at-dev')).toBe(true);
+    expect(own('at-reuniao')).toBe(false);
+  });
+
   it('mostra os dados da tarefa e quem criou', async () => {
     await openAs(USERS.dev, makeTask({
       name: 'Migrar banco', status: 'Em Andamento', priority: 'Alta', deadline: '2026-10-20',

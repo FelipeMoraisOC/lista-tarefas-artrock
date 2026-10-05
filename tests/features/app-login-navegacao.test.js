@@ -150,8 +150,8 @@ describe('App — navegação e acesso', () => {
   it('"Nova Tarefa" do topo só aparece nas telas do fluxo padrão', async () => {
     await bootApp({ signedInAs: 'u-admin' });
     const expected = {
-      dashboard: true, tasks: true,
-      delegated: false, backlog: false, settings: false, admin: false, users: false,
+      dashboard: true, tasks: true, delegated: true,
+      backlog: false, settings: false, admin: false, users: false,
     };
     for (const [page, shown] of Object.entries(expected)) {
       await goTo(page);
@@ -184,6 +184,25 @@ describe('App — criar tarefa pelo topo e falhas', () => {
     click($('#mc-save'));
     await settle();
     expect($$('#tasks-grid .task-card-name').map(text)).toContain('Criada pelo topo');
+  });
+
+  it('"Nova Tarefa" do topo nas Tarefas Delegadas: delegar a outra pessoa já aparece na lista', async () => {
+    await bootApp({ signedInAs: 'u-dev' });
+    await goTo('delegated');
+    click($('#btn-new-task'));
+    await settle();
+    typeInto($('#fc-name'), 'Delegada pelo topo');
+    $('#fc-at').value = 'at-dev';
+    $('#fc-at').dispatchEvent(new Event('change', { bubbles: true }));
+    $('#fc-cat').value = 'c-bug';
+    $('#fc-deadline').value = '2026-10-30';
+    click($('#mc-pick-resp'));
+    click($('.tc-resp-user[data-id="u-sales"]'));
+    click($('#resp-confirm'));
+    await settle();
+    click($('#mc-save'));
+    await settle();
+    expect($$('#deleg-grid .task-card-name').map(text)).toContain('Delegada pelo topo');
   });
 
   it('se o perfil não carregar ao entrar, mostra um erro em vez de tela em branco', async () => {

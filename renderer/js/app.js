@@ -33,7 +33,7 @@ function applyAccessUI(admin, page) {
   document.getElementById('nav-admin').classList.toggle('hidden', !admin);
   document.getElementById('nav-users').classList.toggle('hidden', !admin);
   document.getElementById('btn-new-task').classList.toggle('hidden',
-    ['admin', 'users', 'delegated', 'backlog', 'settings'].includes(page));
+    ['admin', 'users', 'backlog', 'settings'].includes(page));
 }
 
 async function navigate(raw) {

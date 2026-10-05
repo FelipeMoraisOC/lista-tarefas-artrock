@@ -119,6 +119,11 @@ function initials(user) {
   return user.initials ?? user.name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
 }
 
+// Tipo de atividade de algum setor do usuário fica em negrito (os de TODOS, não)
+function ownSectorClass(item, user) {
+  return item.sectorIds.some(s => s !== 'ALL' && user.sectorIds.includes(s)) ? 'class="opt-own-sector"' : '';
+}
+
 function catOptions(cats, selId = '') {
   if (!cats.length) return `<option value="">Nenhuma categoria disponível</option>`;
   return cats.map(c => `<option value="${c.id}" ${c.id === selId ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -318,7 +323,7 @@ export async function openCreateTask(onSave, parentId = null, parentData = null,
   const typeOptions = (sid, selId) => backlog && !sid
     ? '<option value="">Selecione o setor primeiro...</option>'
     : `<option value="">Tipo de atividade...</option>
-       ${typesFor(sid).map(a => `<option value="${a.id}" ${a.id === selId ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}`;
+       ${typesFor(sid).map(a => `<option value="${a.id}" ${ownSectorClass(a, currentUser)} ${a.id === selId ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}`;
 
   const presetAt = typesFor(sectorId).some(a => a.id === preAtId) || isSub ? preAtId : '';
 
@@ -652,7 +657,7 @@ export async function openTaskDetail(task, onSave) {
     <div class="tc-topbar">
       <div class="tc-topbar-left">
         <select class="tc-pill-select" id="dd-at" ${isSub ? 'disabled' : ''} title="Tipo de Atividade" aria-label="Tipo de Atividade">
-          ${myAT().map(a => `<option value="${a.id}" ${W.activityTypeId === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
+          ${myAT().map(a => `<option value="${a.id}" ${ownSectorClass(a, currentUser)} ${W.activityTypeId === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
         </select>
         <select class="tc-pill-select" id="dd-cat" ${isSub ? 'disabled' : ''} title="Categoria" aria-label="Categoria">
           ${catOptions(catsFor(W.activityTypeId), W.categoryId)}

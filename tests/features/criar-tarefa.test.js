@@ -54,6 +54,25 @@ describe('Criar tarefa — modo normal', () => {
     expect(optionValues($('#fc-cat'))).toEqual(['', 'c-bug', 'c-feature']);
   });
 
+  it('tipos de atividade do meu setor ficam em negrito; os de TODOS, não', async () => {
+    await openModal();
+    const own = id => $(`#fc-at option[value="${id}"]`).classList.contains('opt-own-sector');
+    expect(own('at-dev')).toBe(true);
+    expect(own('at-reuniao')).toBe(false);
+  });
+
+  it('usuário de mais de um setor: os tipos de todos os seus setores ficam em negrito', async () => {
+    const multi = { ...USERS.dev, id: 'u-multi', sectorIds: ['s1', 's3'] };
+    seedWorld({ users: [...Object.values(USERS), multi] });
+    signInAs(multi);
+    await openModal();
+    const own = id => $(`#fc-at option[value="${id}"]`).classList.contains('opt-own-sector');
+    expect(optionValues($('#fc-at'))).toEqual(['', 'at-dev', 'at-reuniao', 'at-venda']);
+    expect(own('at-dev')).toBe(true);
+    expect(own('at-venda')).toBe(true);
+    expect(own('at-reuniao')).toBe(false);
+  });
+
   it('campos obrigatórios vazios: mostra erro e não cria nada', async () => {
     await openModal();
     await save();
